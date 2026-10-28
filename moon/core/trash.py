@@ -31,7 +31,7 @@ def move_to_trash(path: Path, trash: Path | None = None) -> Path:
     if not path.exists():
         raise FileNotFoundError(path)
     trash = trash or trash_dir()
-    if sys.platform == "darwin" and trash == trash_dir():
+    if sys.platform == "darwin" and trash == Path.home() / ".Trash":  # Finder's own Trash
         trash.mkdir(exist_ok=True)
         target = trash / _free_name(trash, path.name)
         shutil.move(str(path), target)

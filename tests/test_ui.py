@@ -166,8 +166,10 @@ async def test_explorer_rename_and_delete_to_trash(project, tmp_path, monkeypatc
         prompt = pilot.app.screen.query_one("Input")
         prompt.value = "notes.txt"
         await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()
+        for _ in range(40):  # the renamed file reopens on the next refresh
+            await pilot.pause(0.05)
+            if workspace.active_editor and workspace.active_editor.path.name == "notes.txt":
+                break
         assert (project / "notes.txt").read_text() == "by mistake"
         assert not (project / "oops.txt").exists()
         assert workspace.active_editor.path.name == "notes.txt"
