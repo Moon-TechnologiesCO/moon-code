@@ -283,7 +283,10 @@
       <button data-demo="moon-ai" data-i18n="d4.tab">Moon AI</button>
     </div>
     <div class="demo-layout">
-      <div class="window"><video id="demo-video" src="media/getting-started.mp4" poster="media/getting-started.png" controls muted playsinline preload="metadata"></video></div>
+      <div>
+        <div class="window"><video id="demo-video" src="media/getting-started.music.mp4" poster="media/getting-started.png" controls playsinline preload="metadata"></video></div>
+        <p class="note" id="demo-audio-note">🔊 <span data-i18n="demos.music">With music — turn your sound on</span></p>
+      </div>
       <div class="demo-copy">
         <div data-demo-copy="getting-started">
           <h3 data-i18n="d1.t">From zero to a project</h3>
@@ -493,6 +496,7 @@ const ES = {
   "f8.t": "Bonito desde el inicio", "f8.d": "Interfaz inspirada en macOS con los temas Moon Night, Moon Midnight y Moon Light. Arranca en un instante.",
   "demos.eyebrow": "Míralo en acción", "demos.title": "Demos",
   "demos.lead": "Grabadas desde la app real: cada cuadro es Moon Code funcionando en una terminal.",
+  "demos.music": "Con música — activa el sonido", "demos.voice": "Narrado en español — activa el sonido",
   "d1.tab": "Primeros pasos", "d2.tab": "Programar y ejecutar", "d3.tab": "Herramientas", "d4.tab": "Moon AI",
   "d1.t": "De cero a un proyecto", "d1.d": "Abre Moon Code desde el menú de aplicaciones. La pantalla de inicio te deja crear un proyecto desde una plantilla, abrir una carpeta o volver a uno reciente.",
   "d1.l1": "Plantillas: Python, Node.js, Web, C# y más", "d1.l2": "Teclas en la pantalla de inicio: <kbd>n</kbd> <kbd>o</kbd> <kbd>p</kbd> <kbd>r</kbd>",
@@ -537,6 +541,7 @@ const ES = {
 const EN = {};
 document.querySelectorAll("[data-i18n]").forEach(el => { EN[el.dataset.i18n] = el.innerHTML; });
 EN.copied = "Copied!";
+EN["demos.voice"] = "Narrated in English — turn your sound on";
 
 let lang = "en";
 function setLang(next) {
@@ -574,18 +579,34 @@ document.querySelectorAll(".install-tabs button").forEach(button => {
   });
 });
 
-// Demo player.
+// Demo player: narrated video in the visitor's language when it exists, else the music-only one.
 const video = document.getElementById("demo-video");
+let demo = "getting-started";
+let narrated = {};
+fetch("media/manifest.json").then(r => r.ok ? r.json() : {}).then(m => { narrated = m; loadDemo(false); }).catch(() => {});
+
+function loadDemo(play) {
+  const voiced = (narrated[demo] || []).includes(lang);
+  const src = `media/${demo}.${voiced ? lang : "music"}.mp4`;
+  if (!video.src.endsWith(src)) {
+    video.poster = `media/${demo}.png`;
+    video.src = src;
+  }
+  const note = document.querySelector('#demo-audio-note [data-i18n]');
+  note.dataset.i18n = voiced ? "demos.voice" : "demos.music";
+  note.innerHTML = (lang === "es" ? ES : EN)[note.dataset.i18n];
+  if (play) video.play().catch(() => {});
+}
+
 document.querySelectorAll(".demo-tabs button").forEach(button => {
   button.addEventListener("click", () => {
-    const name = button.dataset.demo;
+    demo = button.dataset.demo;
     document.querySelectorAll(".demo-tabs button").forEach(b => b.classList.toggle("on", b === button));
-    document.querySelectorAll("[data-demo-copy]").forEach(c => { c.hidden = c.dataset.demoCopy !== name; });
-    video.poster = `media/${name}.png`;
-    video.src = `media/${name}.mp4`;
-    video.play().catch(() => {});
+    document.querySelectorAll("[data-demo-copy]").forEach(c => { c.hidden = c.dataset.demoCopy !== demo; });
+    loadDemo(true);
   });
 });
+document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => loadDemo(!video.paused)));
 </script>
 </body>
 </html>
