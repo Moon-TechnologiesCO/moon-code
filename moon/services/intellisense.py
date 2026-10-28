@@ -80,9 +80,21 @@ class JediProvider:
 
         self.jedi = jedi
         self.project = jedi.Project(root)
+        self.environment = self._environment(root)
+
+    def _environment(self, root: Path):
+        """The project's own virtualenv when it has one (so its libraries are suggested),
+        otherwise the running interpreter, which avoids starting a helper process."""
+        for name in (".venv", "venv", "env"):
+            if (root / name / "pyvenv.cfg").exists():
+                try:
+                    return self.jedi.create_environment(str(root / name), safe=False)
+                except Exception:
+                    break
+        return self.jedi.InterpreterEnvironment()
 
     def _script(self, path: Path, text: str):
-        return self.jedi.Script(code=text, path=path, project=self.project)
+        return self.jedi.Script(code=text, path=path, project=self.project, environment=self.environment)
 
     def complete(self, path, text, row, column):
         line = text.split("\n")[row] if row < text.count("\n") + 1 else ""

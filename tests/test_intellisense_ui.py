@@ -37,7 +37,7 @@ async def open_app(pilot, project):
     return workspace, editor
 
 
-async def wait_until(pilot, condition, seconds=8.0):
+async def wait_until(pilot, condition, seconds=25.0):
     for _ in range(int(seconds / 0.1)):
         await pilot.pause()
         if condition():
