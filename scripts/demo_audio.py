@@ -21,6 +21,7 @@ import os
 import random
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 import wave
@@ -252,7 +253,8 @@ def main() -> None:
             print(f"  → {scene}.{lang}.mp4")
 
     # The website reads this to pick the narrated video for the visitor's language.
-    manifest = {scene: [lang for lang in ("en", "es") if (MEDIA / f"{scene}.{lang}.mp4").exists()] for scene in NARRATION}
+    manifest: dict = {scene: [lang for lang in ("en", "es") if (MEDIA / f"{scene}.{lang}.mp4").exists()] for scene in NARRATION}
+    manifest["_version"] = time.strftime("%Y%m%d%H%M")  # lets the website skip cached old videos
     (MEDIA / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
     if not key:

@@ -97,6 +97,13 @@
     border: 1px solid #2a2f48; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03) inset;
   }
   .window video { width: 100%; aspect-ratio: 1600 / 960; object-fit: cover; background: #1a1b26; }
+  .hero-window { position: relative; }
+  .sound-on {
+    position: absolute; right: 18px; bottom: 18px; padding: 10px 16px; border-radius: 999px; cursor: pointer;
+    background: rgba(11,12,20,.82); color: var(--fg); border: 1px solid rgba(122,162,247,.5);
+    font: 600 .9rem Inter, sans-serif; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .sound-on:hover { border-color: var(--accent); }
 
   /* Sections */
   section { padding: 96px 0; position: relative; }
@@ -236,8 +243,9 @@
     </div>
     <p class="note" data-i18n="hero.note">Ubuntu · Debian · macOS — installs everything it needs.</p>
 
-    <div class="window">
-      <video src="media/code-and-run.mp4" poster="media/code-and-run.png" autoplay muted loop playsinline preload="metadata" aria-label="Moon Code demo: writing and running code"></video>
+    <div class="window hero-window">
+      <video id="hero-video" src="media/code-and-run.mp4" poster="media/code-and-run.png" autoplay muted loop playsinline preload="metadata" aria-label="Moon Code demo: writing and running code"></video>
+      <button class="sound-on" id="hero-sound" data-i18n="hero.sound">🔊 Turn on sound</button>
     </div>
   </div>
 </header>
@@ -284,7 +292,7 @@
     </div>
     <div class="demo-layout">
       <div>
-        <div class="window"><video id="demo-video" src="media/getting-started.music.mp4" poster="media/getting-started.png" controls playsinline preload="metadata"></video></div>
+        <div class="window"><video id="demo-video" src="media/getting-started.music.mp4" poster="media/getting-started.png" controls playsinline preload="none"></video></div>
         <p class="note" id="demo-audio-note">🔊 <span data-i18n="demos.music">With music — turn your sound on</span></p>
       </div>
       <div class="demo-copy">
@@ -479,7 +487,7 @@ const ES = {
   "hero.badge": "v0.2.0 · Código abierto · Licencia MIT",
   "hero.title": "El editor de código que <span class=\"grad\">vive en tu terminal</span>",
   "hero.lead": "Todo lo que te gusta de VS Code — explorador, pestañas, autocompletado, terminal integrada, extensiones e IA — reconstruido para la terminal. Rápido, pensado para el teclado y de código abierto.",
-  "hero.install": "Instalar Moon Code", "hero.watch": "▶ Ver las demos",
+  "hero.install": "Instalar Moon Code", "hero.watch": "▶ Ver las demos", "hero.sound": "🔊 Activar sonido",
   "hero.note": "Ubuntu · Debian · macOS — instala todo lo que necesita.",
   "copy": "Copiar", "copied": "¡Copiado!",
   "langs.eyebrow": "Políglota", "langs.title": "Escribe y ejecuta más de 50 lenguajes",
@@ -583,11 +591,16 @@ document.querySelectorAll(".install-tabs button").forEach(button => {
 const video = document.getElementById("demo-video");
 let demo = "getting-started";
 let narrated = {};
-fetch("media/manifest.json").then(r => r.ok ? r.json() : {}).then(m => { narrated = m; loadDemo(false); }).catch(() => {});
+// Always ask for a fresh manifest: GitHub Pages caches files for 10 minutes.
+fetch("media/manifest.json", { cache: "no-store" })
+  .then(r => r.ok ? r.json() : {})
+  .then(m => { narrated = m; loadDemo(false); })
+  .catch(() => {});
+const bust = () => `?v=${encodeURIComponent(narrated._version || "")}`;
 
 function loadDemo(play) {
   const voiced = (narrated[demo] || []).includes(lang);
-  const src = `media/${demo}.${voiced ? lang : "music"}.mp4`;
+  const src = `media/${demo}.${voiced ? lang : "music"}.mp4${bust()}`;
   if (!video.src.endsWith(src)) {
     video.poster = `media/${demo}.png`;
     video.src = src;
@@ -607,6 +620,18 @@ document.querySelectorAll(".demo-tabs button").forEach(button => {
   });
 });
 document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => loadDemo(!video.paused)));
+
+const hero = document.getElementById("hero-video");
+const heroSound = document.getElementById("hero-sound");
+heroSound.addEventListener("click", () => {
+  const voiced = (narrated["code-and-run"] || []).includes(lang);
+  hero.src = `media/code-and-run.${voiced ? lang : "music"}.mp4${bust()}`;
+  hero.muted = false;
+  hero.loop = false;
+  hero.controls = true;
+  hero.play().catch(() => {});
+  heroSound.hidden = true;
+});
 </script>
 </body>
 </html>
