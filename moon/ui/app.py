@@ -1,6 +1,7 @@
 """The Moon Code application: owns settings, themes and which screen is showing."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from textual import work
@@ -8,6 +9,7 @@ from textual.app import App, SystemCommand
 from textual.binding import Binding
 from textual.screen import Screen
 
+from moon import __version__
 from moon.core import updater
 from moon.core.config import Settings, settings_path
 from moon.core.projects import TEMPLATES_BY_ID
@@ -63,8 +65,6 @@ class MoonCode(App):
             file = self._main_file(folder)
         if file is not None:
             self.call_after_refresh(workspace.open_file, file)
-        if self.update_tag:
-            self.call_after_refresh(workspace.show_update, self.update_tag)
 
     def _main_file(self, folder: Path) -> Path | None:
         """For a freshly created project, the file to show first: its code, else its README."""
@@ -93,6 +93,8 @@ class MoonCode(App):
             yield SystemCommand("File: New Project", "Create a project", lambda: screen.run_action("new_project"))
             yield SystemCommand("Preferences: Open Settings (JSON)", "Edit settings.json", self.open_settings)
             yield SystemCommand("Help: Check for Updates", "Look for a newer Moon Code", self.action_check_updates)
+        if self.update_tag:
+            yield SystemCommand(f"Help: Update to {self.update_tag}", "Install the new version and restart", self.action_install_update)
         yield SystemCommand("Quit", "Close Moon Code (ctrl+q)", self.action_request_quit)
 
     # --- Themes & settings ----------------------------------------------------
@@ -124,20 +126,51 @@ class MoonCode(App):
 
     def _update_checked(self, tag: str | None, quiet: bool) -> None:
         self.update_tag = tag
-        if tag:
-            self.notify(f"Moon Code {tag} is available. Run `moon update` in a terminal.", title="Update available", timeout=8)
-            if hasattr(self.screen, "show_update"):
-                self.screen.show_update(tag)
-        elif not quiet:
-            self.notify("You're on the latest version.")
+        if tag is None:
+            if not quiet:
+                self.notify("You're on the latest version.")
+            return
+        for screen in self.screen_stack:
+            if hasattr(screen, "show_update"):
+                screen.show_update(tag)
+        # Ask once per version on startup; asking from the palette always shows the dialog.
+        if quiet and tag == self.settings.skipped_update:
+            return
+
+        def answered(update: bool | None) -> None:
+            if update:
+                self.action_install_update()
+            elif update is False:
+                self.settings.skipped_update = tag
+                self.settings.save()
+
+        self.push_screen(ConfirmDialog(
+            "Update available",
+            f"Moon Code {tag} is ready to install (you have {__version__}).\n"
+            "Moon Code will close, update and open again right where you are.",
+            "Update now", "Later",
+        ), answered)
+
+    def action_install_update(self) -> None:
+        """Close the app; the command line installs the update and starts Moon Code again."""
+        if self.update_tag is None:
+            self.action_check_updates()
+            return
+        screen = self.screen
+        reopen = str(screen.root) if isinstance(screen, WorkspaceScreen) else None
+        self._close_saving(lambda: self.exit(UpdateRequest(reopen)), "Save changes before updating?")
 
     # --- Quit ---------------------------------------------------------------
 
     def action_request_quit(self) -> None:
+        self._close_saving(self.exit, "Save changes before quitting?")
+
+    def _close_saving(self, close, question: str) -> None:
+        """Run `close` once unsaved files are saved or discarded (asks first if there are any)."""
         screen = self.screen
         dirty = screen.dirty_editors() if isinstance(screen, WorkspaceScreen) else []
         if not dirty:
-            self.exit()
+            close()
             return
 
         def answered(save: bool | None) -> None:
@@ -146,7 +179,14 @@ class MoonCode(App):
             if save:
                 for editor in dirty:
                     editor.save()
-            self.exit()
+            close()
 
         names = ", ".join(editor.path.name for editor in dirty[:3]) + ("…" if len(dirty) > 3 else "")
-        self.push_screen(ConfirmDialog("Unsaved changes", f"Save changes before quitting?\n{names}", "Save All", "Don't Save"), answered)
+        self.push_screen(ConfirmDialog("Unsaved changes", f"{question}\n{names}", "Save All", "Don't Save"), answered)
+
+
+@dataclass(frozen=True)
+class UpdateRequest:
+    """Returned by the app when the user chose "Update now"; `reopen` is the folder to open after."""
+
+    reopen: str | None

@@ -21,7 +21,7 @@ Explorer, tabs, autocomplete, an integrated terminal, one-key run for 50+ langua
 **Automatic (Ubuntu, Debian, macOS):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash
+curl -fsSL https://moon-technologiesco.github.io/moon-code/install | bash
 ```
 
 On Ubuntu/Debian it installs the `.deb` with apt. On macOS it installs into `~/.moon-code`, adds the `moon` command and creates **Moon Code.app** in `~/Applications`.
@@ -44,7 +44,7 @@ moon new my-app -t python   # create a project (python, node, web, csharp, empty
 moon update          # install the latest version
 ```
 
-Uninstall: `curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash -s -- --uninstall`
+Uninstall: `curl -fsSL https://moon-technologiesco.github.io/moon-code/install | bash -s -- --uninstall`
 
 ## Features
 
@@ -123,7 +123,7 @@ Moon Code es un editor de código para la terminal, al estilo de VS Code. Su int
 Instalación automática (Ubuntu, Debian y macOS):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash
+curl -fsSL https://moon-technologiesco.github.io/moon-code/install | bash
 ```
 
 Luego ábrelo desde el menú de aplicaciones o con `moon .`. Para actualizar: `moon update`.

@@ -1,6 +1,8 @@
 """Command line: `moon`, `moon <folder|file>`, `moon new <name>`, `moon update`, `moon --version`."""
 
 import argparse
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -32,10 +34,27 @@ def _open(args: list[str]) -> int:
             print(f"moon: {options.target} doesn't exist.", file=sys.stderr)
             return 1
 
-    from moon.ui.app import MoonCode  # Imported late so `moon --version` stays instant.
+    from moon.ui.app import MoonCode, UpdateRequest  # Imported late so `moon --version` stays instant.
 
-    MoonCode(target).run()
+    result = MoonCode(target).run()
+    if isinstance(result, UpdateRequest):
+        return _update_and_relaunch(result.reopen)
     return 0
+
+
+def _update_and_relaunch(reopen: str | None) -> int:
+    """Install the update chosen inside the app, then start the new version."""
+    code = _update()
+    if code != 0:
+        print("The update didn't finish. You can try again with: moon update", file=sys.stderr)
+        return code
+    print("Starting Moon Code…")
+    args = [reopen] if reopen else []
+    launcher = shutil.which("moon")
+    if launcher:
+        os.execv(launcher, [launcher, *args])
+    os.execv(sys.executable, [sys.executable, "-m", "moon", *args])
+    return 0  # Not reached: exec replaces this process.
 
 
 def _new(args: list[str]) -> int:

@@ -45,7 +45,7 @@ def _short(path: str) -> str:
 class WelcomeScreen(Screen):
     BINDINGS = [Binding("full_stop" if key == "." else key, action, label, show=False) for key, _, label, action in MENU] + [
         Binding(str(n), f"open_recent_index({n - 1})", show=False) for n in range(1, 10)
-    ]
+    ] + [Binding("u", "app.install_update", "Update", show=False)]
 
     def __init__(self, settings: Settings, update: str | None = None):
         super().__init__()
@@ -79,7 +79,14 @@ class WelcomeScreen(Screen):
                                                 f"screen.open_recent_index({index - 1})", classes="menu-label")
                                 yield Static(str(index), classes="menu-key")
             with Center():
+                with Horizontal(id="welcome-update", classes="menu-row"):
+                    yield Clickable("", "app.install_update", classes="menu-label", id="welcome-update-label")
+                    yield Static("u", classes="menu-key")
+            with Center():
                 yield Static(self._footer(), id="welcome-footer")
+
+    def on_mount(self) -> None:
+        self._show_update_row()
 
     def _logo(self) -> Text:
         text = Text(justify="left")
@@ -89,12 +96,18 @@ class WelcomeScreen(Screen):
         return text
 
     def _footer(self) -> str:
-        update = f"  ·  [b]⬆ {self.update} available — run `moon update`[/b]" if self.update else ""
-        return f"v{__version__}  ·  Moon Technologies{update}"
+        return f"v{__version__}  ·  Moon Technologies"
 
     def show_update(self, tag: str) -> None:
         self.update = tag
-        self.query_one("#welcome-footer", Static).update(self._footer())
+        if self.is_mounted:  # otherwise on_mount shows it once the screen exists
+            self._show_update_row()
+
+    def _show_update_row(self) -> None:
+        row = self.query_one("#welcome-update")
+        row.display = bool(self.update)
+        if self.update:
+            self.query_one("#welcome-update-label", Clickable).update(f"⬆️  Update to {self.update}")
 
     # --- Actions ------------------------------------------------------------
 

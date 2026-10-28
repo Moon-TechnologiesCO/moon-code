@@ -159,6 +159,7 @@ class WorkspaceScreen(Screen):
         self._apply_extension_features()
         self.status.show("theme", f"🌙 {palette(self.settings.theme).label}")
         self.status.show("indent", f"Spaces: {self.settings.tab_size}")
+        self.status.show("update", f"⬆ Update to {self.app.update_tag}" if self.app.update_tag else "")
         self.query_one("#project-tree").focus()
         self._refresh_branch()
 
@@ -692,7 +693,8 @@ class WorkspaceScreen(Screen):
         self.app.notify(f"Moon Code {__version__} · Moon Technologies · MIT License", title="About")
 
     def show_update(self, tag: str) -> None:
-        self.status.show("update", f"⬆ {tag} available — run `moon update`")
+        if self.is_mounted:  # on_mount picks up app.update_tag otherwise
+            self.status.show("update", f"⬆ Update to {tag}")
 
     # --- Git ----------------------------------------------------------------
 

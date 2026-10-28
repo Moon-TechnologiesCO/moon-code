@@ -210,6 +210,10 @@ WorkspaceScreen.zen #editors > ContentTabs { display: none; }
 .menu-label:hover { background: $panel; color: $primary; }
 .menu-key { width: 3; color: $primary; text-style: bold; }
 #welcome-footer { width: auto; margin-top: 2; color: $moon-muted; }
+#welcome-update { width: 52; margin-top: 1; background: $success 15%; }
+#welcome-update .menu-label { color: $success; text-style: bold; }
+#welcome-update .menu-key { color: $success; }
+#status-update:hover { background: $success 25%; }
 
 /* --- Dialogs ------------------------------------------------------------------------- */
 

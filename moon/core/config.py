@@ -36,6 +36,7 @@ class Settings:
     ollama_url: str = "http://localhost:11434"
     projects_dir: str = str(Path.home() / "Projects")
     check_updates: bool = True
+    skipped_update: str = ""
     disabled_extensions: list[str] = field(default_factory=list)
     recent_projects: list[str] = field(default_factory=list)
 

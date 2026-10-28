@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Moon Code installer for Ubuntu/Debian, other Linux distributions and macOS.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash
+#   curl -fsSL https://moon-technologiesco.github.io/moon-code/install | bash
 #
 # Ubuntu/Debian: installs the latest .deb with apt (asks for your password).
 # macOS and other Linux: installs into ~/.moon-code with Python's venv, adds `moon` to your PATH
 # and (on macOS) creates "Moon Code.app" in ~/Applications.
-# Uninstall: bash install.sh --uninstall
+# Uninstall: curl -fsSL https://moon-technologiesco.github.io/moon-code/install | bash -s -- --uninstall
 set -euo pipefail
 
 REPO="Moon-TechnologiesCO/moon-code"

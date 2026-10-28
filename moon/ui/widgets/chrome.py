@@ -56,7 +56,7 @@ class StatusBar(Horizontal):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="status-branch", classes="status-item")
-        yield Static("", id="status-update", classes="status-item")
+        yield Clickable("", "app.install_update", "Install the update and restart", id="status-update", classes="status-item")
         yield Static(classes="status-spacer")
         yield Static("", id="status-cursor", classes="status-item")
         yield Static("", id="status-indent", classes="status-item")
