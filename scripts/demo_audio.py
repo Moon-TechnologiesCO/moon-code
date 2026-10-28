@@ -2,6 +2,7 @@
 
     python scripts/demo_audio.py                 # music only (no API key needed)
     ELEVENLABS_API_KEY=... python scripts/demo_audio.py   # + ElevenLabs voice (EN and ES) and music
+    (or save the key in ~/.config/elevenlabs/api_key)
 
 Reads docs/media/<scene>.mp4 (silent, from record_demo.py) and writes:
     docs/media/<scene>.music.mp4      music only, used when a narrated version is missing
@@ -30,6 +31,8 @@ MEDIA = ROOT / "docs" / "media"
 CACHE = ROOT / "build" / "demo-audio"
 
 API = "https://api.elevenlabs.io/v1"
+# The key can also live in this file (outside the repo) instead of the environment.
+KEY_FILE = Path.home() / ".config" / "elevenlabs" / "api_key"
 MODEL = "eleven_multilingual_v2"
 DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # "Sarah", a premade multilingual voice
 VOICE_DELAY = 0.6  # seconds of music before the narrator starts
@@ -229,6 +232,8 @@ def mix(video: Path, music: Path, voice: Path | None, output: Path) -> None:
 def main() -> None:
     CACHE.mkdir(parents=True, exist_ok=True)
     key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+    if not key and KEY_FILE.exists():
+        key = KEY_FILE.read_text().strip()
     longest = int(max(duration(MEDIA / f"{scene}.mp4") for scene in NARRATION)) + 30
 
     music = None
