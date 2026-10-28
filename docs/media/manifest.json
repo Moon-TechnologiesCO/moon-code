@@ -1,7 +1,19 @@
 {
-  "getting-started": [],
-  "code-and-run": [],
-  "power-tools": [],
-  "moon-ai": [],
-  "_version": "202610272322"
+  "getting-started": [
+    "en",
+    "es"
+  ],
+  "code-and-run": [
+    "en",
+    "es"
+  ],
+  "power-tools": [
+    "en",
+    "es"
+  ],
+  "moon-ai": [
+    "en",
+    "es"
+  ],
+  "_version": "202610280631"
 }
