@@ -63,6 +63,13 @@ PALETTES_BY_NAME = {palette.name: palette for palette in PALETTES}
 DEFAULT_THEME = "moon-night"
 
 
+def _blend(color: str, background: str, amount: float) -> str:
+    """Mix `amount` of `color` into `background` (both #rrggbb)."""
+    a = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(background[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x * amount + y * (1 - amount)):02x}" for x, y in zip(a, b))
+
+
 def palette(name: str) -> Palette:
     return PALETTES_BY_NAME.get(name, PALETTES_BY_NAME[DEFAULT_THEME])
 
@@ -125,5 +132,9 @@ def editor_theme(p: Palette) -> TextAreaTheme:
             "bold": Style(bold=True),
             "italic": Style(italic=True),
             "link_url": Style(color=p.accent, underline=True),
+            # Problems, drawn like VS Code's squiggles: underline plus a faint tint.
+            "moon.error": Style(underline=True, bgcolor=_blend(p.error, p.background, 0.22)),
+            "moon.warning": Style(underline=True, bgcolor=_blend(p.warning, p.background, 0.18)),
+            "moon.info": Style(underline=True),
         },
     )

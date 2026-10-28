@@ -48,8 +48,8 @@ ActivityBar {
     content-align: center middle;
     color: $moon-muted;
 }
-.activity:hover { background: $panel; }
-.activity.active { background: $panel; border-left: outer $primary; }
+.activity:hover { color: $foreground; }
+.activity.active { color: $foreground; border-left: outer $primary; }
 .activity-spacer { height: 1fr; }
 
 #sidebar {
@@ -123,13 +123,34 @@ FindBar.replace-mode #replace-actions { display: block; margin-top: 2; }
 CompletionMenu {
     overlay: screen;
     position: absolute;
-    width: 32;
-    max-height: 10;
+    width: 40;
+    max-height: 12;
     background: $panel;
-    border: round $primary;
+    border: round $moon-line;
     padding: 0;
 }
-CompletionMenu > .option-list--option-highlighted { background: $primary 40%; text-style: bold; }
+CompletionMenu > .option-list--option-highlighted { background: $primary 30%; }
+
+SignatureHint, HoverCard {
+    overlay: screen;
+    position: absolute;
+    width: auto;
+    max-width: 72;
+    height: auto;
+    max-height: 18;
+    padding: 0 1;
+    background: $panel;
+    border: round $moon-line;
+    color: $foreground;
+}
+HoverCard { border: round $primary 60%; }
+
+.breadcrumbs {
+    height: 1;
+    background: $background;
+    color: $foreground;
+    padding: 0 1;
+}
 
 /* --- Terminal panel ----------------------------------------------------------- */
 
@@ -140,7 +161,10 @@ CompletionMenu > .option-list--option-highlighted { background: $primary 40%; te
 }
 #panel-header { height: 1; padding: 0 1; }
 .panel-tab { width: auto; padding: 0 1; color: $moon-muted; }
+.panel-tab:hover { color: $foreground; }
 .panel-tab.active { color: $foreground; text-style: bold underline; }
+#panel-content { height: 1fr; }
+#problems { height: 1fr; background: $background; }
 .panel-spacer { width: 1fr; }
 .panel-action { width: auto; color: $moon-muted; }
 .panel-action:hover { color: $foreground; }
@@ -184,7 +208,8 @@ StatusBar {
 }
 .status-item { width: auto; padding: 0 1; }
 .status-spacer { width: 1fr; }
-#status-branch { color: $foreground; }
+#status-branch { background: $primary 80%; color: $background; text-style: bold; }
+#status-problems:hover, #status-branch:hover { background: $primary 40%; color: $foreground; }
 #status-update { color: $success; text-style: bold; }
 #status-theme:hover { color: $foreground; }
 
@@ -218,6 +243,18 @@ WorkspaceScreen.zen #editors > ContentTabs { display: none; }
 /* --- Dialogs ------------------------------------------------------------------------- */
 
 .dialog-screen { align: center top; background: $background 60%; }
+.context-screen { background: transparent; }
+#context-menu {
+    position: absolute;
+    width: 34;
+    height: auto;
+    max-height: 20;
+    background: $panel;
+    border: round $moon-line;
+    padding: 0;
+}
+#context-menu > .option-list--option-highlighted { background: $primary 35%; }
+#context-menu > .option-list--separator { color: $moon-line; }
 .dialog {
     width: 72;
     height: auto;

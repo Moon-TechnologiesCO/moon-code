@@ -25,15 +25,15 @@ LOGO = [
 ]
 LOGO_COLORS = ["#c7d2fe", "#a5b4fc", "#93a8fb", "#7aa2f7", "#9d8cf5", "#bb9af7"]
 
-MENU = [
-    ("n", "📄", "New File", "new_file"),
-    ("o", "📂", "Open Folder", "open_folder"),
-    ("p", "✨", "New Project", "new_project"),
-    ("r", "🕘", "Open Recent", "open_recent"),
-    (".", "📍", "Open Current Folder", "open_current"),
-    ("s", "⚙️", "Settings", "open_settings"),
-    ("k", "⌨️", "Keyboard Shortcuts", "shortcuts"),
-    ("q", "⏻", "Quit", "app.request_quit"),
+MENU = [  # key, codicon, emoji fallback, label, action
+    ("n", "\uea7f", "📄", "New File", "new_file"),
+    ("o", "\ueaf7", "📂", "Open Folder", "open_folder"),
+    ("p", "\ueb44", "✨", "New Project", "new_project"),
+    ("r", "\uea82", "🕘", "Open Recent", "open_recent"),
+    (".", "\ueaf4", "📍", "Open Current Folder", "open_current"),
+    ("s", "\ueb51", "⚙️", "Settings", "open_settings"),
+    ("k", "\U000f030c", "⌨️", "Keyboard Shortcuts", "shortcuts"),
+    ("q", "\uea6e", "⏻", "Quit", "app.request_quit"),
 ]
 
 
@@ -43,7 +43,7 @@ def _short(path: str) -> str:
 
 
 class WelcomeScreen(Screen):
-    BINDINGS = [Binding("full_stop" if key == "." else key, action, label, show=False) for key, _, label, action in MENU] + [
+    BINDINGS = [Binding("full_stop" if key == "." else key, action, label, show=False) for key, _, _, label, action in MENU] + [
         Binding(str(n), f"open_recent_index({n - 1})", show=False) for n in range(1, 10)
     ] + [Binding("u", "app.install_update", "Update", show=False)]
 
@@ -53,7 +53,7 @@ class WelcomeScreen(Screen):
         self.update = update
 
     def compose(self) -> ComposeResult:
-        yield TitleBar("Moon Code")
+        yield TitleBar("Moon Code", self.settings.nerd_font)
         with Vertical(id="welcome-body"):
             with Center():
                 yield Static(self._logo(), id="logo")
@@ -63,10 +63,11 @@ class WelcomeScreen(Screen):
                 yield Static("The code editor that lives in your terminal", id="tagline")
             with Center():
                 with Vertical(id="welcome-menu"):
-                    for key, icon, label, action in MENU:
+                    for key, codicon, emoji, label, action in MENU:
                         target = action if "." in action else f"screen.{action}"
+                        icon = codicon if self.settings.nerd_font else emoji
                         with Horizontal(classes="menu-row"):
-                            yield Clickable(f"{icon}  {label}", target, classes="menu-label")
+                            yield Clickable(f"[$primary]{icon}[/]  {label}", target, classes="menu-label")
                             yield Static(key, classes="menu-key")
             recent = [p for p in self.settings.recent_projects if Path(p).is_dir()][:5]
             if recent:
@@ -86,6 +87,7 @@ class WelcomeScreen(Screen):
                 yield Static(self._footer(), id="welcome-footer")
 
     def on_mount(self) -> None:
+        self.query_one("#run-button").display = False  # nothing to run before a folder is open
         self._show_update_row()
 
     def _logo(self) -> Text:
@@ -107,7 +109,8 @@ class WelcomeScreen(Screen):
         row = self.query_one("#welcome-update")
         row.display = bool(self.update)
         if self.update:
-            self.query_one("#welcome-update-label", Clickable).update(f"⬆️  Update to {self.update}")
+            icon = "\ueba5" if self.settings.nerd_font else "⬆️"
+            self.query_one("#welcome-update-label", Clickable).update(f"{icon}  Update to {self.update}")
 
     # --- Actions ------------------------------------------------------------
 

@@ -28,7 +28,7 @@ def extensions_dir() -> Path:
 @dataclass
 class Settings:
     theme: str = "moon-night"
-    nerd_font: bool = False
+    nerd_font: bool = True
     tab_size: int = 4
     show_line_numbers: bool = True
     word_wrap: bool = False

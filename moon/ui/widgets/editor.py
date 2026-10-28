@@ -1,5 +1,6 @@
-"""Code editor: syntax highlighting, autocomplete, find/replace and line comments."""
+"""Code editor: syntax highlighting, IntelliSense, find/replace, diagnostics and smart editing."""
 
+import re
 from pathlib import Path
 
 from textual import events, on
@@ -7,36 +8,55 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Input, OptionList, Static, TextArea
+from textual.timer import Timer
+from textual.widgets import Input, Static, TextArea
 from textual.widgets.text_area import Selection
 
+from moon.core import clipboard
 from moon.core.completion import suggestions, word_at, word_before
 from moon.core.languages import language_for
 from moon.core.themes import PALETTES, editor_theme
+from moon.services.intellisense import CompletionItem, Diagnostic, IntelliSense, Location as CodeLocation
 from moon.ui.widgets.common import Clickable
+from moon.ui.widgets.intellisense import CompletionMenu, HoverCard, SignatureHint
 
 Location = tuple[int, int]
 
 PAIRS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`"}
 CLOSERS = {")", "]", "}", '"', "'", "`"}
-
-
-class CompletionMenu(OptionList, can_focus=False):
-    """Floating suggestion list. Keys are handled by the editor, so it never takes focus."""
+MEMBER_ACCESS = (".", "->", "::")
 
 
 class CodeEditor(TextArea):
-    """TextArea with a file behind it."""
+    """TextArea with a file behind it, wired to IntelliSense."""
 
-    BINDINGS = [Binding("ctrl+a", "select_all", "Select all", show=False)]
+    BINDINGS = [
+        Binding("ctrl+a", "select_all", "Select all", show=False),
+        Binding("ctrl+space,ctrl+@", "trigger_suggest", "Suggest", show=False),
+        Binding("f12", "go_to_definition", "Go to Definition", show=False),
+        Binding("alt+h", "show_hover", "Show Hover", show=False),
+    ]
 
     class DirtyChanged(Message):
         def __init__(self, editor: "CodeEditor") -> None:
             super().__init__()
             self.editor = editor
 
+    class DiagnosticsChanged(Message):
+        def __init__(self, editor: "CodeEditor") -> None:
+            super().__init__()
+            self.editor = editor
+
+    class GoTo(Message):
+        """Ask the workspace to open a location (go to definition)."""
+
+        def __init__(self, location: CodeLocation) -> None:
+            super().__init__()
+            self.location = location
+
     def __init__(self, path: Path, text: str, *, theme: str, tab_size: int, line_numbers: bool,
-                 word_wrap: bool, autocomplete: bool, **kwargs):
+                 word_wrap: bool, autocomplete: bool, intellisense: IntelliSense | None = None,
+                 nerd: bool = True, **kwargs):
         super().__init__(text, show_line_numbers=line_numbers, tab_behavior="indent",
                          soft_wrap=word_wrap, **kwargs)
         self.path = path
@@ -44,13 +64,31 @@ class CodeEditor(TextArea):
         self.indent_width = tab_size
         self.indent_type = "spaces"
         self.autocomplete = autocomplete
+        self.intellisense = intellisense
+        self.nerd = nerd
         self.saved_text = text
+        self.diagnostics: list[Diagnostic] = []
         self._was_dirty = False
+        self._serial = 0
+        self._anchor: tuple[int, int] | None = None
+        self._items: list[CompletionItem] = []
+        self._shown: list[CompletionItem] = []
+        self._lint_timer: Timer | None = None
+        self._hover_timer: Timer | None = None
         for palette in PALETTES:
             self.register_theme(editor_theme(palette))
         self.theme = theme
         if self.language_info.syntax in self.available_languages:
             self.language = self.language_info.syntax
+
+    def on_mount(self) -> None:
+        self._schedule_lint(0.2)
+
+    def action_paste(self) -> None:
+        text = clipboard.paste()  # what you copied in other apps, not only inside Moon Code
+        if text is not None:
+            self.app._clipboard = text  # TextArea pastes from the app's clipboard buffer
+        super().action_paste()
 
     @property
     def dirty(self) -> bool:
@@ -75,49 +113,288 @@ class CodeEditor(TextArea):
     @on(TextArea.Changed)
     def _changed(self) -> None:
         self._notify_dirty()
+        self._schedule_lint()
 
-    # --- Autocomplete -------------------------------------------------------
+    @property
+    def provider(self):
+        return self.intellisense.provider_for(self.path) if self.intellisense else None
+
+    def _floating(self, kind):
+        widgets = self.screen.query(kind)
+        return widgets.first() if widgets else None
+
+    # --- Suggestions --------------------------------------------------------
 
     @property
     def menu(self) -> CompletionMenu | None:
-        menus = self.screen.query(CompletionMenu)
-        return menus.first() if menus else None
+        return self._floating(CompletionMenu)
 
     def _prefix(self) -> str:
         row, column = self.cursor_location
         return word_before(self.document.get_line(row), column)
 
-    def update_completions(self) -> None:
+    def action_trigger_suggest(self) -> None:
+        self.trigger_completion(explicit=True)
+
+    def trigger_completion(self, explicit: bool = False) -> None:
+        if not self.autocomplete or self.menu is None:
+            return
+        row, column = self.cursor_location
+        line = self.document.get_line(row)
+        prefix = word_before(line, column)
+        start = column - len(prefix)
+        member = line[:start].endswith(MEMBER_ACCESS)
+        if not (prefix or member or explicit):
+            self.hide_completions()
+            return
+        anchor = (row, start)
+        if anchor == self._anchor and self._items:
+            self._render(prefix)  # same word: just filter what we already have
+            return
+        self._anchor = anchor
+        current = word_at(line, column)
+        words = suggestions(self.text, prefix, self.language_info.name, limit=12, current=current) if prefix else []
+        self._items = [CompletionItem(word, "text") for word in words]
+        self._render(prefix)
+        if self.intellisense is not None:
+            self._serial += 1
+            serial, text = self._serial, self.text
+            self.run_worker(lambda: self._fetch(serial, anchor, text, row, column),
+                            thread=True, exclusive=True, group="suggest")
+
+    def _fetch(self, serial: int, anchor, text: str, row: int, column: int) -> None:
+        try:
+            provider = self.provider
+            items = provider.complete(self.path, text, row, column) if provider else []
+        except Exception:  # A language server hiccup must never break typing.
+            items = []
+        self.app.call_from_thread(self._fetched, serial, anchor, items)
+
+    def _fetched(self, serial: int, anchor, items: list[CompletionItem]) -> None:
+        if serial != self._serial or anchor != self._anchor or not items:
+            return
+        smart = {item.label for item in items}
+        self._items = items + [item for item in self._items if item.label not in smart]
+        self._render(self._prefix())
+
+    def _render(self, prefix: str) -> None:
         menu = self.menu
         if menu is None:
             return
-        prefix = self._prefix()
-        row, column = self.cursor_location
-        current = word_at(self.document.get_line(row), column)
-        items = suggestions(self.text, prefix, self.language_info.name, current=current) if self.autocomplete else []
-        if not items:
+        lowered = prefix.lower()
+        items = self._items
+        if not prefix.startswith("_"):  # like VS Code: _private and __dunder__ names only when you ask
+            public = [item for item in items if not item.label.startswith("_")]
+            items = public or items
+        starts = [item for item in items if item.label.lower().startswith(lowered)]
+        contains = [item for item in items if lowered and lowered in item.label.lower() and item not in starts]
+        shown = (starts + contains)[:60]
+        if not shown or (len(shown) == 1 and shown[0].label == prefix):
             menu.display = False
             return
-        menu.clear_options()
-        menu.add_options(items)
-        menu.highlighted = 0
+        self._shown = shown
+        width = menu.show_items(shown, prefix, self.nerd)
         x, y = self.cursor_screen_offset
-        menu.styles.offset = (max(x - len(prefix), 0), y + 1)
+        height = min(len(shown), 10) + 2
+        screen_height = self.screen.size.height
+        top = y + 1 if y + 1 + height <= screen_height else max(y - height, 0)
+        menu.styles.width = width
+        menu.styles.offset = (max(x - len(prefix) - 3, 0), top)
         menu.display = True
 
     def hide_completions(self) -> None:
         if self.menu is not None:
             self.menu.display = False
+        self._anchor = None
+        self._items = []
 
     def accept_completion(self) -> None:
         menu = self.menu
-        if menu is None or menu.highlighted is None:
+        if menu is None or menu.highlighted is None or not self._shown:
             return
-        word = str(menu.get_option_at_index(menu.highlighted).prompt)
-        prefix = self._prefix()
+        item = self._shown[menu.highlighted]
         row, column = self.cursor_location
-        self.replace(word, (row, column - len(prefix)), (row, column))
-        menu.display = False
+        prefix = self._prefix()
+        self.replace(item.insert or item.label, (row, column - len(prefix)), (row, column))
+        self.hide_completions()
+
+    # --- Signature help -----------------------------------------------------
+
+    def _request_signature(self) -> None:
+        if self.intellisense is None or self._floating(SignatureHint) is None:
+            return
+        row, column = self.cursor_location
+        text = self.text
+
+        def fetch() -> None:
+            try:
+                provider = self.provider
+                signature = provider.signature(self.path, text, row, column) if provider else None
+            except Exception:
+                signature = None
+            self.app.call_from_thread(self._show_signature, signature, (row, column))
+
+        self.run_worker(fetch, thread=True, exclusive=True, group="signature")
+
+    def _show_signature(self, signature, location) -> None:
+        hint = self._floating(SignatureHint)
+        if hint is None:
+            return
+        if signature is None or self.cursor_location[0] != location[0]:
+            hint.display = False
+            return
+        hint.show_signature(signature)
+        x, y = self.cursor_screen_offset
+        lines = 2 if "\n" in str(hint.render()) else 1
+        hint.styles.offset = (max(x - 2, 0), max(y - lines - 2, 0))
+        hint.display = True
+
+    def hide_signature(self) -> None:
+        hint = self._floating(SignatureHint)
+        if hint is not None:
+            hint.display = False
+
+    # --- Hover, definition --------------------------------------------------
+
+    def action_show_hover(self) -> None:
+        row, column = self.cursor_location
+        x, y = self.cursor_screen_offset
+        self._hover_at(row, column, (x, y + 1))
+
+    def _hover_at(self, row: int, column: int, screen: tuple[int, int]) -> None:
+        line = self.document.get_line(row) if row < self.document.line_count else ""
+        problems = [d for d in self.diagnostics if d.line <= row <= d.end_line]
+        if not word_at(line, column) and not problems:
+            return
+        text = self.text
+
+        def fetch() -> None:
+            try:
+                provider = self.provider
+                doc = provider.hover(self.path, text, row, column) if provider and word_at(line, column) else None
+            except Exception:
+                doc = None
+            self.app.call_from_thread(self._show_hover, doc, problems, screen)
+
+        self.run_worker(fetch, thread=True, exclusive=True, group="hover")
+
+    def _show_hover(self, doc: str | None, problems: list[Diagnostic], screen: tuple[int, int]) -> None:
+        card = self._floating(HoverCard)
+        if card is None or not (doc or problems):
+            return
+        from rich.text import Text
+
+        content = Text()
+        for problem in problems:
+            color = {"error": "#f7768e", "warning": "#e0af68"}.get(problem.severity, "#7dcfff")
+            content.append(f"● {problem.message}", style=color)
+            content.append(f"  {problem.source}\n" if problem.source else "\n", style="dim")
+        if doc:
+            if problems:
+                content.append("\n")
+            lines = doc.strip().split("\n")
+            content.append(lines[0] + "\n", style="bold")
+            content.append("\n".join(lines[1:18]).strip())
+        card.update(content)
+        x, y = screen
+        card.styles.offset = (max(min(x, self.screen.size.width - 72), 0), y)
+        card.display = True
+
+    def hide_hover(self) -> None:
+        card = self._floating(HoverCard)
+        if card is not None:
+            card.display = False
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        if self._hover_timer is not None:
+            self._hover_timer.stop()
+        self.hide_hover()
+        if self.intellisense is None:
+            return
+        row, column = self.get_target_document_location(event)
+        screen = (event.screen_x, event.screen_y + 1)
+        self._hover_timer = self.set_timer(0.7, lambda: self._hover_at(row, column, screen))
+
+    def on_leave(self, event: events.Leave) -> None:
+        if self._hover_timer is not None:
+            self._hover_timer.stop()
+
+    def action_go_to_definition(self) -> None:
+        row, column = self.cursor_location
+        self._definition_at(row, column)
+
+    def _definition_at(self, row: int, column: int) -> None:
+        if self.intellisense is None:
+            return
+        text = self.text
+
+        def fetch() -> None:
+            try:
+                provider = self.provider
+                location = provider.definition(self.path, text, row, column) if provider else None
+            except Exception:
+                location = None
+            if location is None:
+                self.app.call_from_thread(self.app.notify, "No definition found.", severity="warning")
+            else:
+                self.app.call_from_thread(self.post_message, self.GoTo(location))
+
+        self.run_worker(fetch, thread=True, exclusive=True, group="definition")
+
+    async def _on_click(self, event: events.Click) -> None:
+        if event.ctrl:  # ctrl+click: go to definition, like VS Code
+            row, column = self.get_target_document_location(event)
+            self.move_cursor((row, column))
+            self._definition_at(row, column)
+            event.stop()
+            return
+        await super()._on_click(event)
+
+    # --- Diagnostics --------------------------------------------------------
+
+    def _schedule_lint(self, delay: float = 0.6) -> None:
+        if self.intellisense is None or not self.is_mounted:
+            return
+        if self._lint_timer is not None:
+            self._lint_timer.stop()
+        self._lint_timer = self.set_timer(delay, self._lint)
+
+    def _lint(self) -> None:
+        text = self.text
+
+        def run() -> None:
+            try:
+                provider = self.provider
+                found = provider.diagnostics(self.path, text) if provider else None
+            except Exception:
+                found = None
+            if found is not None:  # language servers push theirs through the workspace instead
+                self.app.call_from_thread(self.set_diagnostics, found)
+
+        self.run_worker(run, thread=True, exclusive=True, group="lint")
+
+    def set_diagnostics(self, diagnostics: list[Diagnostic]) -> None:
+        self.diagnostics = sorted(diagnostics, key=lambda d: (d.line, d.column))
+        self._build_highlight_map()
+        self.refresh()
+        self.post_message(self.DiagnosticsChanged(self))
+
+    def _build_highlight_map(self) -> None:
+        super()._build_highlight_map()
+        lines = self.document.lines
+        for problem in getattr(self, "diagnostics", []):
+            name = f"moon.{problem.severity}"
+            for row in range(problem.line, min(problem.end_line, len(lines) - 1) + 1):
+                text = lines[row] if row < len(lines) else ""
+                start = problem.column if row == problem.line else 0
+                end = problem.end_column if row == problem.end_line else len(text)
+                if start >= end:  # zero-width problem: mark the word (or the line end) it points at
+                    end = max(start + 1, start + len(re.match(r"\w*", text[start:]).group(0)))
+                start_byte = len(text[:start].encode())
+                end_byte = len(text[:end].encode())
+                self._highlights[row].append((start_byte, end_byte if end_byte > start_byte else None, name))
+
+    # --- Keys ---------------------------------------------------------------
 
     async def _on_key(self, event: events.Key) -> None:
         menu = self.menu
@@ -132,26 +409,45 @@ class CodeEditor(TextArea):
                 event.prevent_default()
                 event.stop()
                 return
-            if event.key == "escape":
-                menu.display = False
+        if event.key == "escape":
+            closed = False
+            for widget in (menu, self._floating(SignatureHint), self._floating(HoverCard)):
+                if widget is not None and widget.display:
+                    widget.display = False
+                    closed = True
+            self._anchor = None
+            if closed:
                 event.prevent_default()
                 event.stop()
                 return
+        self.hide_hover()
         if self._smart_edit(event):
             event.prevent_default()
             event.stop()
-            self.hide_completions()
+            self._after_typing(event)
             return
         await super()._on_key(event)
-        if event.character and (event.character.isalnum() or event.character == "_"):
-            self.call_after_refresh(self.update_completions)
-        elif event.key == "backspace" and menu is not None and menu.display:
-            self.call_after_refresh(self.update_completions)
+        self._after_typing(event)
+
+    def _after_typing(self, event: events.Key) -> None:
+        char = event.character or ""
+        if char and (char.isalnum() or char == "_"):
+            self.call_after_refresh(self.trigger_completion)
+        elif char in (".", ">", ":"):
+            self.call_after_refresh(self.trigger_completion)
+        elif event.key == "backspace" and self.menu is not None and self.menu.display:
+            self.call_after_refresh(self.trigger_completion)
         else:
             self.hide_completions()
+        if char in ("(", ","):
+            self.call_after_refresh(self._request_signature)
+        elif char == ")" or event.key in ("enter", "up", "down"):
+            self.hide_signature()
 
     def _on_blur(self, event: events.Blur) -> None:
         self.hide_completions()
+        self.hide_signature()
+        self.hide_hover()
 
     # --- Smart editing: auto-indent, indent-aware backspace, bracket pairs -----
 

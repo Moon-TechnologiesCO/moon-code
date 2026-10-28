@@ -3,16 +3,18 @@
 from collections.abc import Iterable
 from pathlib import Path
 
+from rich.style import Style
 from rich.text import Text
-from textual import on, work
+from textual import events, on, work
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widgets import Checkbox, DirectoryTree, Input, OptionList, Select, Static, Switch
 from textual.widgets.option_list import Option
 
 from moon.core import files, git
-from moon.core.icons import icon_for
+from moon.core.icons import icon_text
 from moon.extensions import Extension
 from moon.services import ollama
 from moon.ui.widgets.common import Clickable, SectionTitle
@@ -21,31 +23,97 @@ from moon.ui.widgets.common import Clickable, SectionTitle
 class OpenFile(Message):
     """Ask the workspace to open a file (optionally at a line)."""
 
-    def __init__(self, path: Path, line: int | None = None) -> None:
+    def __init__(self, path: Path, line: int | None = None, focus: bool = True) -> None:
         super().__init__()
         self.path = path
         self.line = line
+        self.focus = focus
 
 
 # --- Explorer ---------------------------------------------------------------
 
 
+class ExplorerAction(Message):
+    """Ask the workspace to do something with a file or folder (rename, delete, new_file…)."""
+
+    def __init__(self, action: str, path: Path, mouse: tuple[int, int] | None = None) -> None:
+        super().__init__()
+        self.action = action
+        self.path = path
+        self.mouse = mouse
+
+
 class ProjectTree(DirectoryTree):
     """Directory tree with file icons that hides dependency/build folders."""
+
+    BINDINGS = [
+        Binding("f2", "explorer('rename')", "Rename", show=False),
+        Binding("delete", "explorer('delete')", "Delete", show=False),
+        Binding("shift+f10,menu", "explorer('menu')", "Menu", show=False),
+    ]
+
+    GIT_COLORS = {"M": "#e2c08d", "A": "#81b88b", "?": "#73c991", "D": "#c74e39", "R": "#73c991", "U": "#e5534b"}
 
     def __init__(self, path: Path, nerd: bool, **kwargs):
         super().__init__(path, **kwargs)
         self.nerd = nerd
+        self.git_status: dict[Path, str] = {}  # file or folder -> status letter, like VS Code's decorations
+
+    def set_git_status(self, changes: list[tuple[str, str]]) -> None:
+        status: dict[Path, str] = {}
+        root = Path(self.path).resolve()
+        for code, relative in changes:
+            letter = "U" if code in ("??", "?") else code[0]
+            path = root / relative.split(" -> ")[-1].rstrip("/")
+            status[path] = letter
+            for parent in path.parents:  # folders show that something inside changed
+                if parent == root or root not in parent.parents:
+                    break
+                status.setdefault(parent, "•")
+        self.git_status = status
+        self.refresh()
+
+    @property
+    def selected_path(self) -> Path:
+        node = self.cursor_node
+        return Path(node.data.path) if node is not None and node.data is not None else Path(self.path)
+
+    def action_explorer(self, action: str) -> None:
+        mouse = None
+        if action == "menu" and self.cursor_node is not None:
+            region = self.content_region
+            mouse = (region.x + 4, region.y + self.cursor_line - self.scroll_offset.y + 1)
+        self.post_message(ExplorerAction(action, self.selected_path, mouse))
+
+    async def _on_click(self, event: events.Click) -> None:
+        if event.button == 3:  # right click: select the row under the mouse and open the menu
+            line = event.y + self.scroll_offset.y
+            node = self.get_node_at_line(line)
+            if node is not None:
+                self.move_cursor(node)
+            self.focus()
+            event.stop()
+            self.post_message(ExplorerAction("menu", self.selected_path, (event.screen_x, event.screen_y)))
+            return
+        await super()._on_click(event)
 
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         return [p for p in paths if p.name not in files.IGNORED_DIRS and p.name != ".DS_Store"]
 
     def render_label(self, node, base_style, style) -> Text:
         path = Path(node.data.path)
-        icon = icon_for(path, self.nerd, expanded=node.is_expanded)
-        label = Text.assemble((f"{icon} ", ""), (path.name, style))
-        if path.name.startswith("."):
-            label.stylize("dim")
+        label = icon_text(path, self.nerd, expanded=node.is_expanded)
+        label.append(" ")
+        status = self.git_status.get(path.resolve())
+        name_style = style
+        if status:
+            color = self.GIT_COLORS.get(status, "#e2c08d")
+            name_style = style + Style(color=color)
+        label.append(path.name, name_style)
+        if status:
+            label.append(f"  {status}", Style(color=self.GIT_COLORS.get(status, "#8a93b8"), dim=status == "•"))
+        if path.name.startswith(".") and not status:
+            label.stylize("dim", 2)
         return label
 
 
@@ -66,8 +134,10 @@ class ExplorerView(Vertical):
 
     @on(DirectoryTree.FileSelected)
     def _open(self, event: DirectoryTree.FileSelected) -> None:
+        # Like VS Code: the first click opens the file and keeps you in the explorer;
+        # selecting the file that is already open moves the cursor into the editor.
         event.stop()
-        self.post_message(OpenFile(Path(event.path)))
+        self.post_message(OpenFile(Path(event.path), focus=False))
 
     def reload(self) -> None:
         self.query_one(ProjectTree).reload()

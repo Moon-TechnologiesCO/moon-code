@@ -66,6 +66,20 @@ install_venv() {
   esac
 }
 
+install_icon_font() {
+  # Moon Code's file icons use Nerd Font glyphs; terminals pick them up from this symbols font.
+  local tag="$1" dir
+  if [ "$(uname -s)" = "Darwin" ]; then dir="$HOME/Library/Fonts"; else dir="$HOME/.local/share/fonts"; fi
+  mkdir -p "$dir"
+  curl -fsSL -o "$dir/SymbolsNerdFontMono-Regular.ttf" "$RAW/$tag/packaging/fonts/SymbolsNerdFontMono-Regular.ttf" || return 0
+  if [ "$(uname -s)" != "Darwin" ]; then
+    mkdir -p "$HOME/.config/fontconfig/conf.d"
+    curl -fsSL -o "$HOME/.config/fontconfig/conf.d/10-moon-code-symbols.conf" \
+      "$RAW/$tag/packaging/fonts/10-nerd-font-symbols.conf" || true
+    command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$dir" >/dev/null 2>&1 || true
+  fi
+}
+
 install_macos_app() {
   local tag="$1" app="$HOME/Applications/Moon Code.app"
   info "Creating $app"
@@ -127,6 +141,7 @@ main() {
   case "$(uname -s)" in
     Darwin)
       install_venv "$tag"
+      install_icon_font "$tag"
       install_macos_app "$tag"
       ;;
     Linux)
@@ -134,6 +149,7 @@ main() {
         install_deb "$tag"
       else
         install_venv "$tag"
+        install_icon_font "$tag"
         install_linux_desktop_entry "$tag"
       fi
       ;;

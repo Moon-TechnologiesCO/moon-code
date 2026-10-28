@@ -9,7 +9,6 @@ Set MOON_DEMO_AI=0 to skip the scene that talks to a local Ollama model.
 
 import asyncio
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -36,7 +35,9 @@ os.environ["SHELL"] = str(SHELL)
 from moon.core.config import Settings  # noqa: E402  (after MOON_CONFIG_DIR is set)
 from moon.ui.app import MoonCode  # noqa: E402
 
-FRAME_DOTS = re.compile(r'<g transform="translate\(26,22\)">.*?</g>', re.S)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import svgshot  # noqa: E402
+
 
 
 class Recorder:
@@ -46,10 +47,7 @@ class Recorder:
         self.shots: list[tuple[Path, float]] = []
 
     def shot(self, seconds: float = 1.2) -> None:
-        path = self.frames / f"{len(self.shots):04d}.svg"
-        self.app.save_screenshot(str(path))
-        # The app draws its own macOS traffic lights; drop the duplicate ones from the SVG frame.
-        path.write_text(FRAME_DOTS.sub("", path.read_text(), count=1))
+        path = svgshot.save(self.app, self.frames / f"{len(self.shots):04d}.svg")
         self.shots.append((path, seconds))
 
 

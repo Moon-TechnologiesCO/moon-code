@@ -56,6 +56,18 @@ for size in 16 32 48 64 128 256 512; do
 done
 install -m 644 "$ROOT/LICENSE" "$STAGE/usr/share/doc/moon-code/copyright"
 
+# Icon font: terminals fall back to it for Nerd Font glyphs, so file icons work with any font.
+mkdir -p "$STAGE/usr/share/fonts/truetype/moon-code" "$STAGE/etc/fonts/conf.d"
+install -m 644 "$ROOT/packaging/fonts/SymbolsNerdFontMono-Regular.ttf" "$STAGE/usr/share/fonts/truetype/moon-code/"
+install -m 644 "$ROOT/packaging/fonts/LICENSE-NerdFonts" "$STAGE/usr/share/doc/moon-code/LICENSE-NerdFonts"
+install -m 644 "$ROOT/packaging/fonts/10-nerd-font-symbols.conf" "$STAGE/etc/fonts/conf.d/10-moon-code-symbols.conf"
+cat > "$STAGE/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -e
+if command -v fc-cache >/dev/null 2>&1; then fc-cache -f /usr/share/fonts/truetype/moon-code >/dev/null 2>&1 || true; fi
+POSTINST
+chmod 755 "$STAGE/DEBIAN/postinst"
+
 # 4. Package metadata.
 SIZE_KB="$(du -sk "$STAGE/usr" | cut -f1)"
 cat > "$STAGE/DEBIAN/control" <<CONTROL
@@ -65,7 +77,7 @@ Section: devel
 Priority: optional
 Architecture: amd64
 Depends: python3 (>= 3.10)
-Recommends: git, ripgrep
+Recommends: git, ripgrep, xclip | wl-clipboard, fontconfig
 Suggests: ollama
 Installed-Size: $SIZE_KB
 Maintainer: Moon Technologies <https://github.com/Moon-TechnologiesCO/moon-code>

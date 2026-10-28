@@ -12,7 +12,7 @@ from textual.widgets import Button, DirectoryTree, Input, OptionList, Select, St
 from textual.widgets.option_list import Option
 
 from moon.core import files
-from moon.core.icons import icon_for
+from moon.core.icons import icon_text
 from moon.core.projects import TEMPLATES, create_project
 
 
@@ -65,7 +65,7 @@ class PickDialog(Dialog):
             if self.file_icons:
                 path = Path(label)
                 name, parent = path.name, str(path.parent) if str(path.parent) != "." else ""
-                options.add_option(Option(Text.assemble(f"{icon_for(path, self.nerd)} ", (name, "bold"), (f"  {parent}", "dim"))))
+                options.add_option(Option(Text.assemble(icon_text(path, self.nerd), " ", (name, "bold"), (f"  {parent}", "dim"))))
             else:
                 options.add_option(Option(label))
         if self.shown:
@@ -223,16 +223,57 @@ class NewProjectDialog(Dialog):
         self.dismiss(folder)
 
 
+class ContextMenu(Dialog):
+    """Right-click menu at the mouse position. Returns the chosen action id."""
+
+    def __init__(self, items: list[tuple[str, str, str]], x: int, y: int):
+        """`items` are (label, shortcut, action id); a label of "-" draws a separator."""
+        super().__init__(classes="context-screen")
+        self.items = items
+        self.position = (x, y)
+
+    def compose(self) -> ComposeResult:
+        options = []
+        for label, shortcut, action in self.items:
+            if label == "-":
+                options.append(None)
+            else:
+                options.append(Option(Text.assemble(f" {label:<22}", (f"{shortcut:>8} ", "dim")), id=action))
+        yield OptionList(*options, id="context-menu")
+
+    def on_mount(self) -> None:
+        menu = self.query_one("#context-menu", OptionList)
+        width = 34
+        height = len(self.items) + 2
+        x = min(self.position[0], max(self.size.width - width, 0))
+        y = min(self.position[1], max(self.size.height - height, 0))
+        menu.styles.offset = (x, y)
+        menu.highlighted = 0
+        menu.focus()
+
+    @on(OptionList.OptionSelected, "#context-menu")
+    def _chosen(self, event: OptionList.OptionSelected) -> None:
+        self.dismiss(event.option.id)
+
+    def on_click(self, event) -> None:
+        if event.widget is self:  # a click outside the menu closes it
+            self.dismiss(None)
+
+
 class ShortcutsDialog(Dialog):
     SHORTCUTS = [
-        ("General", [("F1", "Command palette"), ("ctrl+p", "Quick open file"), ("ctrl+q", "Quit")]),
+        ("General", [("F1 / ctrl+shift+p", "Command palette"), ("ctrl+p", "Quick open file"), ("ctrl+q", "Quit")]),
         ("Files", [("ctrl+n", "New file"), ("ctrl+o", "Open folder"), ("ctrl+s", "Save"), ("ctrl+w", "Close editor"),
-                   ("ctrl+pageup/down", "Previous / next editor")]),
+                   ("ctrl+pageup/down", "Previous / next editor"), ("F2 / Del", "Rename / delete (explorer)"),
+                   ("right click", "Explorer menu")]),
         ("Editing", [("ctrl+z / ctrl+y", "Undo / redo"), ("ctrl+c / x / v", "Copy / cut / paste"), ("ctrl+a", "Select all"),
-                     ("ctrl+f", "Find"), ("ctrl+h", "Replace"), ("ctrl+g", "Go to line"), ("ctrl+/", "Toggle comment"),
-                     ("tab", "Accept suggestion")]),
+                     ("ctrl+f / ctrl+h", "Find / replace"), ("ctrl+g", "Go to line"), ("ctrl+/", "Toggle comment")]),
+        ("IntelliSense", [("ctrl+space", "Trigger suggestions"), ("tab / enter", "Accept suggestion"),
+                          ("F12 / ctrl+click", "Go to definition"), ("alt+left", "Go back"),
+                          ("ctrl+shift+o", "Go to symbol in file"), ("alt+h", "Show hover docs"),
+                          ("ctrl+shift+m", "Problems")]),
         ("View", [("ctrl+b", "Toggle sidebar"), ("ctrl+j", "Toggle terminal"), ("ctrl+l", "Moon AI chat"),
-                  ("ctrl+e", "Explorer"), ("F11", "Zen mode")]),
+                  ("ctrl+0 / ctrl+e", "Focus explorer"), ("ctrl+1", "Focus editor"), ("F11", "Zen mode")]),
         ("Run", [("F5", "Run active file"), ("ctrl+F5", "Run project")]),
     ]
 
@@ -245,5 +286,5 @@ class ShortcutsDialog(Dialog):
             for group, items in self.SHORTCUTS:
                 yield Static(group, classes="shortcut-group")
                 for keys, label in items:
-                    yield Static(Text.assemble((f"{keys:<20}", "bold"), label))
+                    yield Static(Text.assemble((f"{keys:<22}", "bold"), label))
             yield Static("Esc to close", classes="muted")

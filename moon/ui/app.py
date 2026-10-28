@@ -10,7 +10,7 @@ from textual.binding import Binding
 from textual.screen import Screen
 
 from moon import __version__
-from moon.core import updater
+from moon.core import clipboard, updater
 from moon.core.config import Settings, settings_path
 from moon.core.projects import TEMPLATES_BY_ID
 from moon.core.themes import PALETTES, app_theme, palette
@@ -46,6 +46,10 @@ class MoonCode(App):
             self.open_workspace(self.target)
         if self.settings.check_updates:
             self._check_updates(quiet=True)
+
+    def copy_to_clipboard(self, text: str) -> None:
+        super().copy_to_clipboard(text)  # OSC 52, for terminals that support it
+        clipboard.copy(text)  # GNOME Terminal and others need the desktop clipboard tools
 
     # --- Screens ------------------------------------------------------------
 

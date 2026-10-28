@@ -146,3 +146,65 @@ async def test_welcome_screen_offers_the_update(project, monkeypatch):
         await pilot.pause()
         assert app.screen.query_one("#welcome-update").display
         assert "v9.9.9" in str(app.screen.query_one("#welcome-update-label").render())
+
+
+async def test_explorer_rename_and_delete_to_trash(project, tmp_path, monkeypatch):
+    from moon.core import trash
+    from moon.ui.dialogs import ConfirmDialog, PromptDialog
+
+    monkeypatch.setattr(trash, "trash_dir", lambda: tmp_path / "Trash")
+    (project / "oops.txt").write_text("by mistake")
+    async with make_app(project).run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        workspace = pilot.app.screen
+        workspace.open_file(project / "oops.txt")
+        await pilot.pause()
+
+        workspace.rename_path(project / "oops.txt")
+        await pilot.pause()
+        assert isinstance(pilot.app.screen, PromptDialog)
+        prompt = pilot.app.screen.query_one("Input")
+        prompt.value = "notes.txt"
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+        assert (project / "notes.txt").read_text() == "by mistake"
+        assert not (project / "oops.txt").exists()
+        assert workspace.active_editor.path.name == "notes.txt"
+
+        workspace.delete_path(project / "notes.txt")
+        await pilot.pause()
+        assert isinstance(pilot.app.screen, ConfirmDialog)
+        await pilot.click("#yes")
+        await pilot.pause()
+        assert not (project / "notes.txt").exists()
+        assert (tmp_path / "Trash" / "files" / "notes.txt").exists()
+        assert all(e.path.name != "notes.txt" for e in workspace.editors.values())
+
+
+async def test_explorer_keeps_focus_on_first_open(project):
+    (project / "other.py").write_text("x = 1\n")
+    async with make_app(project).run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        workspace = pilot.app.screen
+        from moon.ui.widgets.views import OpenFile
+        workspace.tree.focus()
+        workspace.post_message(OpenFile(project / "other.py", focus=False))
+        await pilot.pause()
+        assert workspace.active_editor.path.name == "other.py"
+        assert not workspace.active_editor.has_focus
+        workspace.post_message(OpenFile(project / "other.py", focus=False))
+        await pilot.pause()
+        assert workspace.active_editor.has_focus
+
+
+async def test_right_click_opens_context_menu(project):
+    from moon.ui.dialogs import ContextMenu
+
+    async with make_app(project).run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        tree = pilot.app.screen.query_one("#project-tree")
+        await pilot.click(tree, offset=(6, 1), button=3)
+        await pilot.pause()
+        assert isinstance(pilot.app.screen, ContextMenu)
