@@ -421,6 +421,17 @@ class WorkspaceScreen(Screen):
         else:
             self._remove_pane(pane_id)
 
+    async def _reopen_moved(self, moves: list[tuple[str, Path]]) -> None:
+        """Close the tabs of renamed files, wait until they're gone, then open the new paths.
+        Opening before the old tab is removed lets Textual activate a different tab afterwards."""
+        for pane_id, _ in moves:
+            editor = self.editors.pop(pane_id, None)
+            if editor is not None:
+                self.intellisense.close_file(editor.path)
+            await self.tabs.remove_pane(pane_id)
+        for _, new_path in moves:
+            self.open_file(new_path)
+
     def _remove_pane(self, pane_id: str) -> None:
         editor = self.editors.pop(pane_id, None)
         if editor is not None:
@@ -537,10 +548,10 @@ class WorkspaceScreen(Screen):
             except OSError as error:
                 self.app.notify(f"Couldn't rename: {error.strerror}", severity="error")
                 return
-            for pane_id, editor in open_editors:
-                new_path = target / editor.path.relative_to(path.resolve()) if path.is_dir() or target.is_dir() else target
-                self._remove_pane(pane_id)
-                self.call_after_refresh(self.open_file, new_path)
+            moves = [(pane_id, target / editor.path.relative_to(path.resolve()) if target.is_dir() else target)
+                     for pane_id, editor in open_editors]
+            if moves:
+                self.call_later(self._reopen_moved, moves)
             self.action_refresh_explorer()
             self.app.notify(f"Renamed to {target.name}.")
 
