@@ -12,12 +12,12 @@ Screen {
     width: 32;
     min-width: 20;
     background: $surface;
-    border-right: tall $primary-darken-2;
+    border-right: round $primary-darken-2;
     padding: 0 1;
 }
 
 #explorer:focus-within {
-    border-right: tall $primary;
+    border-right: round $primary;
 }
 
 #tabs {
@@ -46,7 +46,7 @@ TextArea {
     min-width: 30;
     display: none;
     background: $surface;
-    border-left: tall $secondary;
+    border-left: round $secondary;
 }
 
 #chat-title {
@@ -73,6 +73,8 @@ TextArea {
 
 Header {
     background: $panel;
+    color: $foreground;
+    text-style: bold;
 }
 
 Footer {

@@ -33,7 +33,7 @@ class MoonEditor(TextArea):
 
 
 class MoonCode(App):
-    TITLE = "Moon Code"
+    TITLE = "●  ●  ●    Moon Code"
     SUB_TITLE = "editor de terminal"
     CSS_PATH = "moon.tcss"
 

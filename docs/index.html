@@ -3,26 +3,143 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moon Code</title>
+<title>Moon Code · Editor de código para la terminal</title>
+<meta name="description" content="Moon Code: editor de código para la terminal con explorador, pestañas, temas Moon y chat de IA local.">
+<link rel="icon" href="icons/moon-code.svg" type="image/svg+xml">
 <style>
-  :root { --bg:#1a1b26; --fg:#c0caf5; --accent:#7aa2f7; --panel:#24283b; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family: system-ui, sans-serif; line-height:1.6; }
-  main { max-width: 760px; margin: 0 auto; padding: 4rem 1.25rem; }
-  h1 { color: var(--accent); font-size: 2.6rem; margin-bottom: .2rem; }
-  pre { background: var(--panel); padding: 1rem; border-radius: 8px; overflow-x: auto; }
-  a { color: var(--accent); }
+  :root {
+    --bg: #14151f; --panel: #1f2335; --line: #2f3550;
+    --fg: #c0caf5; --muted: #8a93b8; --accent: #7aa2f7; --accent2: #bb9af7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(1200px 600px at 50% -10%, #242a4a 0%, var(--bg) 60%);
+    color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 0; }
+  .brand { font-weight: 700; font-size: 1.1rem; color: var(--fg); }
+  .nav-links a { margin-left: 1.5rem; color: var(--muted); }
+
+  .hero { text-align: center; padding: 4rem 0 3rem; }
+  .hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 1.1; margin: 0 0 1rem; letter-spacing: -.02em; }
+  .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--muted); font-size: 1.15rem; max-width: 640px; margin: 0 auto 2rem; }
+  .cta { display: inline-flex; gap: .75rem; flex-wrap: wrap; justify-content: center; }
+  .btn { padding: .7rem 1.3rem; border-radius: 10px; font-weight: 600; border: 1px solid var(--line); color: var(--fg); }
+  .btn.primary { background: var(--accent); color: #101320; border-color: var(--accent); }
+  .btn:hover { text-decoration: none; filter: brightness(1.1); }
+
+  .window {
+    margin: 3rem auto 0; max-width: 860px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.45);
+  }
+  .titlebar { display: flex; gap: 8px; align-items: center; padding: .7rem 1rem; background: #181b2b; border-bottom: 1px solid var(--line); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .titlebar .name { margin-left: auto; margin-right: auto; color: var(--muted); font-size: .9rem; transform: translateX(-30px); }
+  pre.demo { margin: 0; padding: 1.25rem 1.5rem; font: 14px/1.6 ui-monospace, "JetBrains Mono", Menlo, monospace; color: var(--fg); overflow-x: auto; }
+  .k { color: var(--accent2); } .s { color: #9ece6a; } .c { color: #565f89; } .n { color: #ff9e64; } .f { color: var(--accent); }
+
+  section { padding: 3.5rem 0; }
+  section h2 { font-size: 1.9rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  section > p.lead { color: var(--muted); margin: 0 0 2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem; }
+  .card h3 { margin: .2rem 0 .4rem; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+  .ico { font-size: 1.6rem; }
+
+  .install { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+  .install .card h3 { color: var(--fg); }
+  code, pre.code { font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size: .9rem; }
+  pre.code { background: #111320; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; margin: .6rem 0 0; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 3rem; padding: 2rem 0; color: var(--muted); font-size: .9rem; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+
+  @media (max-width: 640px) {
+    .nav-links a { margin-left: .9rem; }
+    .titlebar .name { transform: none; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>🌙 Moon Code</h1>
-  <p>Editor de código para la terminal: explorador de archivos, pestañas, temas Moon y chat de IA local con Ollama.</p>
-  <h2>Instalar</h2>
-  <pre><code>pip install "git+https://github.com/Moon-TechnologiesCO/moon-code.git"
-moon ./mi-proyecto</code></pre>
-  <h2>Actualizar</h2>
-  <pre><code>moon update</code></pre>
-  <p><a href="https://github.com/Moon-TechnologiesCO/moon-code">Código fuente en GitHub</a> · Licencia MIT</p>
-</main>
+<div class="wrap">
+  <nav>
+    <div class="brand">🌙 Moon Code</div>
+    <div class="nav-links">
+      <a href="#funciones">Funciones</a>
+      <a href="#instalar">Instalar</a>
+      <a href="https://github.com/Moon-TechnologiesCO/moon-code">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>El editor de código<br><span>dentro de tu terminal</span></h1>
+    <p>Moon Code reúne explorador, pestañas, resaltado de sintaxis, temas Moon y un chat de IA que corre en tu equipo con Ollama. Rápido, sin Electron y con diseño cuidado.</p>
+    <div class="cta">
+      <a class="btn primary" href="#instalar">Instalar</a>
+      <a class="btn" href="https://github.com/Moon-TechnologiesCO/moon-code">Ver código</a>
+    </div>
+
+    <div class="window" role="img" aria-label="Vista previa de Moon Code">
+      <div class="titlebar">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+        <span class="name">Moon Code · main.py</span>
+      </div>
+<pre class="demo"><span class="c"># Moon Code abre tu proyecto en la terminal</span>
+<span class="k">from</span> moon.core <span class="k">import</span> themes
+
+<span class="k">def</span> <span class="f">saludar</span>(nombre: <span class="k">str</span>) -&gt; <span class="k">str</span>:
+    <span class="k">return</span> <span class="s">f"Hola, {nombre}"</span>
+
+<span class="f">print</span>(saludar(<span class="s">"Moon"</span>))  <span class="c"># <span class="n">Hola, Moon</span></span></pre>
+    </div>
+  </header>
+
+  <section id="funciones">
+    <h2>Funciones</h2>
+    <p class="lead">Lo esencial de un editor moderno, sin salir de la terminal.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🗂️</div><h3>Explorador de archivos</h3><p>Árbol de carpetas con iconos por tipo de archivo.</p></div>
+      <div class="card"><div class="ico">🎨</div><h3>Resaltado de sintaxis</h3><p>Python, JavaScript, TypeScript, Bash, Lua, Rust, Go y más.</p></div>
+      <div class="card"><div class="ico">🌙</div><h3>Temas Moon</h3><p>Versión noche y día, pensadas para leer largas sesiones de código.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3>IA local</h3><p>Chat con modelos de Ollama. Tu código no sale de tu equipo.</p></div>
+      <div class="card"><div class="ico">⚡</div><h3>Rápido</h3><p>Una sola aplicación de Python ligera, sin navegador embebido.</p></div>
+      <div class="card"><div class="ico">⬆️</div><h3>Actualizable</h3><p><code>moon update</code> instala la última versión publicada.</p></div>
+    </div>
+  </section>
+
+  <section id="instalar">
+    <h2>Instalar</h2>
+    <p class="lead">Elige la opción que te quede mejor. El paquete trae todas sus dependencias.</p>
+    <div class="install">
+      <div class="card">
+        <h3>Ubuntu / Debian (.deb)</h3>
+        <p>Descarga el paquete desde las releases y ábrelo, o instálalo desde la terminal:</p>
+        <pre class="code">sudo apt install ./moon-code_0.1.0_amd64.deb</pre>
+        <p style="margin-top:.6rem">Después búscalo en el menú de aplicaciones como <b>Moon Code</b>.</p>
+      </div>
+      <div class="card">
+        <h3>Con pip</h3>
+        <p>Si ya usas Python 3.11 o superior:</p>
+        <pre class="code">pip install "git+https://github.com/Moon-TechnologiesCO/moon-code.git"
+moon ./mi-proyecto</pre>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Moon Technologies · Licencia MIT</span>
+    <span><a href="https://github.com/Moon-TechnologiesCO/moon-code">GitHub</a> · <a href="https://github.com/Moon-TechnologiesCO/moon-code/issues">Reportar un problema</a></span>
+  </div>
+</footer>
 </body>
 </html>
