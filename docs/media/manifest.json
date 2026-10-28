@@ -1,6 +1,18 @@
 {
-  "getting-started": [],
-  "code-and-run": [],
-  "power-tools": [],
-  "moon-ai": []
+  "getting-started": [
+    "en",
+    "es"
+  ],
+  "code-and-run": [
+    "en",
+    "es"
+  ],
+  "power-tools": [
+    "en",
+    "es"
+  ],
+  "moon-ai": [
+    "en",
+    "es"
+  ]
 }
