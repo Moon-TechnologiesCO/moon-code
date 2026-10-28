@@ -47,18 +47,20 @@ NARRATION = {
               "Pulsa P para crear un proyecto, elige una plantilla y listo para programar.",
     },
     "code-and-run": {
-        "en": "Write code the way you're used to. Moon Code indents for you, closes brackets, "
-              "and suggests names as you type. Press Tab to accept, then F5 to run it in the integrated terminal.",
-        "es": "Escribe código como siempre. Moon Code indenta por ti, cierra los paréntesis "
-              "y te sugiere nombres mientras escribes. Pulsa Tab para aceptar y F5 para ejecutarlo en la terminal integrada.",
+        "en": "Write code with real IntelliSense. Type a dot and Moon Code suggests the right methods, "
+              "and when you call a function, its signature appears as you type. "
+              "Then press F5 to run it in the integrated terminal.",
+        "es": "Escribe código con IntelliSense de verdad. Escribe un punto y Moon Code te sugiere los métodos correctos, "
+              "y al llamar una función ves su firma mientras escribes. "
+              "Luego pulsa F5 para ejecutarlo en la terminal integrada.",
     },
     "power-tools": {
-        "en": "Jump to any file with Control P. Open the command palette with F1 to run any command, "
-              "like changing the color theme. Search across your whole project, "
-              "and turn extensions on or off with a single click.",
-        "es": "Salta a cualquier archivo con Control P. Abre la paleta de comandos con F1 para ejecutar "
-              "cualquier comando, como cambiar el tema de colores. Busca en todo tu proyecto "
-              "y activa o desactiva extensiones con un solo clic.",
+        "en": "Right-click any file to rename or delete it, just like in VS Code. "
+              "Jump to files with Control P, run commands from the palette, search the whole project, "
+              "manage extensions, and catch errors in the Problems panel.",
+        "es": "Haz clic derecho en cualquier archivo para renombrarlo o borrarlo, igual que en VS Code. "
+              "Salta a archivos con Control P, ejecuta comandos desde la paleta, busca en todo el proyecto, "
+              "gestiona extensiones y encuentra errores en el panel de problemas.",
     },
     "moon-ai": {
         "en": "Need help? Press Control L to open Moon AI. Ask a question about the file you're working on, "
@@ -238,9 +240,12 @@ def main() -> None:
     longest = int(max(duration(MEDIA / f"{scene}.mp4") for scene in NARRATION)) + 30
 
     music = None
-    if key and os.environ.get("MOON_MUSIC") != "synth":
-        music = eleven_music(key, min(longest, 120))
+    if os.environ.get("MOON_MUSIC") != "synth":
+        cached = CACHE / "music-eleven.mp3"
+        music = cached if cached.exists() else (eleven_music(key, min(longest, 120)) if key else None)
     music = music or synth_music(longest)
+    if os.environ.get("MOON_NO_VOICE") == "1":  # music-only videos, no credits spent
+        key = ""
 
     for scene in NARRATION:
         video = MEDIA / f"{scene}.mp4"

@@ -230,7 +230,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="badge"><b>●</b> <span data-i18n="hero.badge">v0.2.0 · Open source · MIT license</span></span>
+    <span class="badge"><b>●</b> <span data-i18n="hero.badge">v0.3.0 · Open source · MIT license</span></span>
     <h1 data-i18n="hero.title">The code editor that <span class="grad">lives in your terminal</span></h1>
     <p class="lead" data-i18n="hero.lead">Everything you love about VS Code — explorer, tabs, autocomplete, an integrated terminal, extensions and AI — rebuilt for the terminal. Fast, keyboard-first and open source.</p>
     <div class="cta">
@@ -267,13 +267,13 @@
     <h2 data-i18n="features.title">A complete editor. No window required.</h2>
     <p class="section-lead" data-i18n="features.lead">Moon Code feels familiar from the first keystroke: the layout, the shortcuts and the workflow you already know.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🗂️</div><h3 data-i18n="f1.t">Explorer & tabs</h3><p data-i18n="f1.d">File tree with icons, tabs with unsaved markers, Quick Open with fuzzy search (ctrl+p).</p></div>
-      <div class="card"><div class="ico">💡</div><h3 data-i18n="f2.t">Smart editing</h3><p data-i18n="f2.d">Syntax highlighting, autocomplete, auto-indent, bracket pairs, find & replace, go to line, toggle comments.</p></div>
+      <div class="card"><div class="ico">🗂️</div><h3 data-i18n="f1.t">Explorer & tabs</h3><p data-i18n="f1.d">Material-style colored icons, right-click menu to create, rename or delete (to the Trash), Git colors and Quick Open (ctrl+p).</p></div>
+      <div class="card"><div class="ico">💡</div><h3 data-i18n="f2.t">Real IntelliSense</h3><p data-i18n="f2.d">Methods as you type, signature help, hover docs, go to definition (F12) and errors underlined in a Problems panel. Python built in; other languages use the same servers as VS Code.</p></div>
       <div class="card"><div class="ico">⌨️</div><h3 data-i18n="f3.t">Integrated terminal</h3><p data-i18n="f3.d">A real shell inside the editor (ctrl+j). Run git, npm, docker or anything else without leaving.</p></div>
       <div class="card"><div class="ico">▶</div><h3 data-i18n="f4.t">One-key run</h3><p data-i18n="f4.d">F5 runs the active file, ctrl+F5 the project. Compiled languages are built and run for you.</p></div>
       <div class="card"><div class="ico">🤖</div><h3 data-i18n="f5.t">Local AI</h3><p data-i18n="f5.d">Chat with models running on your machine through Ollama. Ask about the active file — your code never leaves your computer.</p></div>
       <div class="card"><div class="ico">🧩</div><h3 data-i18n="f6.t">Extensions</h3><p data-i18n="f6.d">Turn features on and off in one click, or write your own extension in a single Python file.</p></div>
-      <div class="card"><div class="ico">🔍</div><h3 data-i18n="f7.t">Search & Git</h3><p data-i18n="f7.d">Search across the whole project (uses ripgrep when installed) and see changed files and your branch.</p></div>
+      <div class="card"><div class="ico">🔍</div><h3 data-i18n="f7.t">Search & Git</h3><p data-i18n="f7.d">Search across the whole project, see changed files and your branch, and edit with auto-indent, bracket pairs, find & replace and comments.</p></div>
       <div class="card"><div class="ico">🌙</div><h3 data-i18n="f8.t">Beautiful by default</h3><p data-i18n="f8.d">A macOS-inspired interface with Moon Night, Moon Midnight and Moon Light themes. Starts in a blink.</p></div>
     </div>
   </div>
@@ -363,7 +363,7 @@
         <div class="step"><div class="n">2</div><div>
           <h4 data-i18n="deb.s2">Install it</h4>
           <p data-i18n="deb.s2d">Double-click the file, or install it from the terminal in the folder where you downloaded it:</p>
-          <div class="code">sudo apt install ./moon-code_0.2.0_amd64.deb<button class="copy" data-copy="sudo apt install ./moon-code_0.2.0_amd64.deb" data-i18n="copy">Copy</button></div>
+          <div class="code">sudo apt install ./moon-code_0.3.0_amd64.deb<button class="copy" data-copy="sudo apt install ./moon-code_0.3.0_amd64.deb" data-i18n="copy">Copy</button></div>
         </div></div>
         <div class="step"><div class="n">3</div><div>
           <h4 data-i18n="deb.s3">Open it</h4>
@@ -427,6 +427,8 @@
         <tr><td data-i18n="k7">Run file / project</td><td><kbd>F5</kbd> · <kbd>ctrl</kbd> <kbd>F5</kbd></td></tr>
         <tr><td data-i18n="k8">Moon AI</td><td><kbd>ctrl</kbd> <kbd>l</kbd></td></tr>
         <tr><td data-i18n="k9">Undo / redo</td><td><kbd>ctrl</kbd> <kbd>z</kbd> · <kbd>ctrl</kbd> <kbd>y</kbd></td></tr>
+        <tr><td data-i18n="k10">Suggestions / go to definition</td><td><kbd>ctrl</kbd> <kbd>space</kbd> · <kbd>F12</kbd></td></tr>
+        <tr><td data-i18n="k11">Rename / delete file</td><td><kbd>F2</kbd> · <kbd>Del</kbd></td></tr>
       </table>
     </div>
     <div>
@@ -457,6 +459,7 @@ DESCRIPTION = <span class="s">"Greets the active file"</span>
     <details><summary data-i18n="q2">Does the AI send my code to the cloud?</summary><p data-i18n="a2">No. Moon AI only talks to Ollama on your own machine (localhost). Install Ollama and pull a model, for example: ollama pull gemma3n:e2b.</p></details>
     <details><summary data-i18n="q3">Which terminals does it work in?</summary><p data-i18n="a3">Any modern terminal: GNOME Terminal, Ptyxis, Konsole, Kitty, Alacritty, WezTerm, iTerm2 and macOS Terminal. Mouse and colors are supported.</p></details>
     <details><summary data-i18n="q4">Do I need Neovim or another editor?</summary><p data-i18n="a4">No. Moon Code is its own editor and the package installs everything it needs.</p></details>
+    <details><summary data-i18n="q6">Which languages have IntelliSense?</summary><p data-i18n="a6">Python works out of the box. JavaScript, TypeScript, Go, Rust, C/C++, C#, HTML, CSS, JSON, Lua, Bash, PHP and more use the same language servers as VS Code: open a file and Moon Code tells you how to install its server (F1 → IntelliSense: Install Language Server).</p></details>
     <details><summary data-i18n="q5">How do I update?</summary><p data-i18n="a5">Run moon update. Moon Code checks for new versions on start and shows a notice in the status bar.</p></details>
   </div>
 </section>
@@ -484,7 +487,7 @@ DESCRIPTION = <span class="s">"Greets the active file"</span>
 <script>
 const ES = {
   "nav.features": "Funciones", "nav.demos": "Demos", "nav.install": "Instalar", "nav.extensions": "Extensiones", "nav.download": "Descargar",
-  "hero.badge": "v0.2.0 · Código abierto · Licencia MIT",
+  "hero.badge": "v0.3.0 · Código abierto · Licencia MIT",
   "hero.title": "El editor de código que <span class=\"grad\">vive en tu terminal</span>",
   "hero.lead": "Todo lo que te gusta de VS Code — explorador, pestañas, autocompletado, terminal integrada, extensiones e IA — reconstruido para la terminal. Rápido, pensado para el teclado y de código abierto.",
   "hero.install": "Instalar Moon Code", "hero.watch": "▶ Ver las demos", "hero.sound": "🔊 Activar sonido",
@@ -494,13 +497,13 @@ const ES = {
   "langs.lead": "Pulsa F5 para ejecutar el archivo que estás editando, o ctrl+F5 para ejecutar todo el proyecto. Moon Code detecta npm, Cargo, Go, .NET, Gradle, Maven, Make y más.",
   "features.eyebrow": "Funciones", "features.title": "Un editor completo. Sin ventanas.",
   "features.lead": "Moon Code se siente familiar desde la primera tecla: la distribución, los atajos y el flujo de trabajo que ya conoces.",
-  "f1.t": "Explorador y pestañas", "f1.d": "Árbol de archivos con iconos, pestañas que marcan cambios sin guardar y apertura rápida con búsqueda difusa (ctrl+p).",
-  "f2.t": "Edición inteligente", "f2.d": "Resaltado de sintaxis, autocompletado, autoindentación, cierre de paréntesis, buscar y reemplazar, ir a línea y comentar líneas.",
+  "f1.t": "Explorador y pestañas", "f1.d": "Iconos de colores estilo Material, menú de clic derecho para crear, renombrar o borrar (a la papelera), colores de Git y apertura rápida (ctrl+p).",
+  "f2.t": "IntelliSense de verdad", "f2.d": "Métodos mientras escribes, ayuda de firmas, documentación al pasar el ratón, ir a la definición (F12) y errores subrayados en un panel de problemas. Python incluido; otros lenguajes usan los mismos servidores que VS Code.",
   "f3.t": "Terminal integrada", "f3.d": "Una shell real dentro del editor (ctrl+j). Usa git, npm, docker o lo que quieras sin salir.",
   "f4.t": "Ejecutar con una tecla", "f4.d": "F5 ejecuta el archivo activo y ctrl+F5 el proyecto. Los lenguajes compilados se compilan y ejecutan solos.",
   "f5.t": "IA local", "f5.d": "Chatea con modelos que corren en tu equipo mediante Ollama. Pregunta sobre el archivo activo: tu código nunca sale de tu computadora.",
   "f6.t": "Extensiones", "f6.d": "Activa y desactiva funciones con un clic, o escribe tu propia extensión en un solo archivo de Python.",
-  "f7.t": "Búsqueda y Git", "f7.d": "Busca en todo el proyecto (usa ripgrep si está instalado) y ve los archivos modificados y tu rama.",
+  "f7.t": "Búsqueda y Git", "f7.d": "Busca en todo el proyecto, ve los archivos modificados y tu rama, y edita con autoindentación, cierre de paréntesis, buscar y reemplazar y comentarios.",
   "f8.t": "Bonito desde el inicio", "f8.d": "Interfaz inspirada en macOS con los temas Moon Night, Moon Midnight y Moon Light. Arranca en un instante.",
   "demos.eyebrow": "Míralo en acción", "demos.title": "Demos",
   "demos.lead": "Grabadas desde la app real: cada cuadro es Moon Code funcionando en una terminal.",
@@ -531,6 +534,7 @@ const ES = {
   "pip.s2": "Abre un proyecto", "pip.s3": "Desinstala cuando quieras",
   "keys.eyebrow": "Pensado para el teclado", "keys.title": "Atajos que ya conoces", "keys.lead": "Atajos estándar de Linux, los mismos de VS Code. Sin modos que aprender.",
   "k1": "Paleta de comandos", "k2": "Abrir archivo rápido", "k3": "Guardar", "k4": "Buscar / reemplazar", "k5": "Mostrar terminal",
+  "k10": "Sugerencias / ir a la definición", "k11": "Renombrar / borrar archivo",
   "k6": "Mostrar barra lateral", "k7": "Ejecutar archivo / proyecto", "k8": "Moon AI", "k9": "Deshacer / rehacer",
   "ext.eyebrow": "Extensiones", "ext.title": "Hazlo tuyo con un solo archivo",
   "ext.lead": "Las extensiones incluidas (Code Runner, Formatter, Git, Moon AI, Autocomplete) se activan con un clic. Las tuyas son un solo archivo de Python: créalas desde la vista de Extensiones.",
@@ -539,6 +543,7 @@ const ES = {
   "q2": "¿La IA envía mi código a la nube?", "a2": "No. Moon AI solo habla con Ollama en tu propio equipo (localhost). Instala Ollama y descarga un modelo, por ejemplo: ollama pull gemma3n:e2b.",
   "q3": "¿En qué terminales funciona?", "a3": "En cualquier terminal moderna: GNOME Terminal, Ptyxis, Konsole, Kitty, Alacritty, WezTerm, iTerm2 y Terminal de macOS. Soporta ratón y colores.",
   "q4": "¿Necesito Neovim u otro editor?", "a4": "No. Moon Code es su propio editor y el paquete instala todo lo que necesita.",
+  "q6": "¿Qué lenguajes tienen IntelliSense?", "a6": "Python funciona desde el principio. JavaScript, TypeScript, Go, Rust, C/C++, C#, HTML, CSS, JSON, Lua, Bash, PHP y más usan los mismos servidores de lenguaje que VS Code: abre un archivo y Moon Code te dice cómo instalar su servidor (F1 → IntelliSense: Install Language Server).",
   "q5": "¿Cómo actualizo?", "a5": "Ejecuta moon update. Moon Code busca versiones nuevas al iniciar y muestra un aviso en la barra de estado.",
   "final.title": "Tu terminal, ahora un editor completo.", "final.lead": "Instala Moon Code en menos de un minuto.",
   "final.install": "Instalar Moon Code", "final.star": "⭐ Dale una estrella en GitHub",

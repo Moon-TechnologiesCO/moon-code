@@ -48,14 +48,19 @@ Uninstall: `curl -fsSL https://moon-technologiesco.github.io/moon-code/install |
 
 ## Features
 
-- **Workbench like VS Code**: activity bar, explorer with icons, tabs with unsaved markers, status bar, zen mode.
-- **Editing**: syntax highlighting, autocomplete, auto-indent, bracket pairs, find & replace, go to line, toggle comments, undo/redo.
+- **Workbench like VS Code**: activity bar with codicons, explorer with Material-style colored icons and Git colors, tabs with close buttons, breadcrumbs, status bar, zen mode.
+- **IntelliSense**: method and attribute suggestions as you type (with kind icons), signature help, hover docs, go to definition (`F12`, `ctrl+click`, back with `alt+left`), go to symbol (`ctrl+shift+o`).
+  Python works out of the box (Jedi). Other languages use the same language servers as VS Code (TypeScript, Go, Rust, C/C++, C#, HTML/CSS/JSON, Lua, Bash, PHP…); Moon Code tells you how to install them.
+- **Problems**: errors underlined in the editor and listed in the Problems panel (`ctrl+shift+m`).
+- **Explorer**: right-click menu, rename (`F2`), delete to the Trash (`Del`), new file/folder in the selected folder, copy path.
+- **Editing**: syntax highlighting, auto-indent, bracket pairs, find & replace, go to line, toggle comments, system clipboard.
 - **Integrated terminal**: a real shell (`ctrl+j`) with colors and scrollback.
 - **Run anything**: `F5` runs the active file, `ctrl+F5` the project (npm, Cargo, Go, .NET, Gradle, Maven, Make, Swift, Zig…).
-- **Search & Git**: project-wide search (uses ripgrep when installed), branch and changed files.
 - **Moon AI**: chat with local models through [Ollama](https://ollama.com); optionally include the active file. Nothing leaves your machine.
 - **Extensions**: built-ins toggle in one click; write your own in one Python file.
 - **Themes**: Moon Night, Moon Midnight, Moon Light.
+
+Icons need a Nerd Font glyph set. The installers add *Symbols Nerd Font*, which terminals use as a fallback, so you keep your usual font. Without it, set `"nerd_font": false` in settings to use emoji.
 
 ## Keyboard shortcuts
 
