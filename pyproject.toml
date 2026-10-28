@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "moon-code"
-version = "0.3.0"
+version = "0.3.1"
 description = "Moon Code: editor de código para la terminal."
 readme = "README.md"
 requires-python = ">=3.10"

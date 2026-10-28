@@ -43,7 +43,9 @@ rm -rf "$WHEELS"
 # 3. Launcher, menu entry and icons.
 cat > "$STAGE/usr/bin/moon" <<'WRAP'
 #!/bin/sh
-PYTHONPATH=/usr/lib/moon-code exec python3 -m moon "$@"
+# Load Moon Code only from /usr/lib/moon-code: never from the current folder, where a file or
+# folder named like one of its modules (moon/, textual.py…) would otherwise be imported instead.
+exec python3 -c 'import sys; sys.path[:] = ["/usr/lib/moon-code"] + [p for p in sys.path if p not in ("", ".")]; from moon.cli import main; sys.exit(main())' "$@"
 WRAP
 chmod 755 "$STAGE/usr/bin/moon"
 
