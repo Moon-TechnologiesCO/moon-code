@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Moon Code
+GenericName=Code Editor
+Comment=The code editor that lives in your terminal
+Exec=moon %f
+Icon=moon-code
+Terminal=true
+Categories=Development;IDE;TextEditor;
+Keywords=editor;code;terminal;ide;moon;
+MimeType=text/plain;inode/directory;
+StartupNotify=false

@@ -1,0 +1,235 @@
+/* Moon Code — macOS-inspired layout. Colors come from the active Moon theme. */
+
+Screen {
+    background: $background;
+    color: $foreground;
+}
+
+.muted { color: $moon-muted; }
+.hint { padding: 1 1; }
+
+/* --- Title bar ------------------------------------------------------------ */
+
+TitleBar {
+    height: 1;
+    background: $panel;
+}
+#traffic-lights { width: 12; height: 1; padding: 0 1; }
+.light { width: 2; height: 1; }
+.light.close { color: #ff5f57; }
+.light.minimize { color: #febc2e; }
+.light.zoom { color: #28c840; }
+.light:hover { text-style: bold reverse; }
+#title-text {
+    width: 1fr;
+    content-align: center middle;
+    text-align: center;
+    color: $moon-muted;
+    text-style: bold;
+}
+#title-actions { width: auto; height: 1; }
+#run-button { width: auto; background: $success 25%; color: $success; text-style: bold; }
+#run-button:hover { background: $success 45%; }
+.title-icon { width: auto; color: $moon-muted; }
+.title-icon:hover { color: $foreground; }
+
+/* --- Body ----------------------------------------------------------------- */
+
+#body { height: 1fr; }
+
+ActivityBar {
+    width: 5;
+    background: $surface;
+    border-right: vkey $moon-line;
+}
+.activity {
+    width: 100%;
+    height: 3;
+    content-align: center middle;
+    color: $moon-muted;
+}
+.activity:hover { background: $panel; }
+.activity.active { background: $panel; border-left: outer $primary; }
+.activity-spacer { height: 1fr; }
+
+#sidebar {
+    width: 32;
+    background: $surface;
+    border-right: vkey $moon-line;
+}
+#sidebar > * { height: 1fr; }
+.view-header { height: 1; padding: 0 1; }
+SectionTitle { width: 1fr; color: $moon-muted; text-style: bold; }
+.view-action { width: auto; color: $moon-muted; }
+.view-action:hover { color: $foreground; background: $panel; }
+.project-name { padding: 0 1; text-style: bold; color: $foreground; }
+
+DirectoryTree { background: $surface; padding: 0 0 0 1; }
+DirectoryTree:focus { background-tint: transparent; }
+
+#search-input, #ai-input { margin: 0 1; border: round $moon-line; background: $background; }
+#search-input:focus, #ai-input:focus { border: round $primary; }
+#search-summary { padding: 0 1; }
+OptionList { background: $surface; border: none; }
+
+/* --- Editor area ------------------------------------------------------------ */
+
+#main { width: 1fr; }
+
+#editors { height: 1fr; }
+#editors > ContentTabs { background: $surface; }
+#editors ContentTab { color: $moon-muted; padding: 0 2; }
+#editors ContentTab.-active { color: $foreground; background: $background; text-style: bold; }
+#editors TabPane { padding: 0; }
+#watermark { width: 100%; height: 100%; content-align: center middle; text-align: center; color: $foreground; }
+
+CodeEditor {
+    height: 1fr;
+    border: none;
+    padding: 0;
+    background: $background;
+}
+
+* {
+    scrollbar-size: 1 1;
+    scrollbar-background: $background;
+    scrollbar-background-hover: $background;
+    scrollbar-background-active: $background;
+    scrollbar-color: $moon-line;
+    scrollbar-color-hover: $moon-muted;
+    scrollbar-color-active: $primary;
+    scrollbar-corner-color: $background;
+}
+CodeEditor:focus { border: none; }
+
+FindBar {
+    height: auto;
+    background: $panel;
+    border-bottom: solid $moon-line;
+    padding: 0 1;
+}
+#find-fields { width: 1fr; height: auto; }
+#find-fields Input { border: round $moon-line; background: $background; height: 3; }
+#find-fields Input:focus { border: round $primary; }
+#find-actions { width: auto; height: auto; padding: 1 0 0 1; }
+#find-actions > Horizontal { width: auto; height: 1; }
+#find-count { width: 12; color: $moon-muted; }
+.find-button { width: auto; color: $moon-muted; }
+.find-button:hover { color: $foreground; background: $surface; }
+#replace-input, #replace-actions { display: none; }
+FindBar.replace-mode #replace-input { display: block; }
+FindBar.replace-mode #replace-actions { display: block; margin-top: 2; }
+
+CompletionMenu {
+    overlay: screen;
+    position: absolute;
+    width: 32;
+    max-height: 10;
+    background: $panel;
+    border: round $primary;
+    padding: 0;
+}
+CompletionMenu > .option-list--option-highlighted { background: $primary 40%; text-style: bold; }
+
+/* --- Terminal panel ----------------------------------------------------------- */
+
+#panel {
+    height: 14;
+    border-top: hkey $moon-line;
+    background: $background;
+}
+#panel-header { height: 1; padding: 0 1; }
+.panel-tab { width: auto; padding: 0 1; color: $moon-muted; }
+.panel-tab.active { color: $foreground; text-style: bold underline; }
+.panel-spacer { width: 1fr; }
+.panel-action { width: auto; color: $moon-muted; }
+.panel-action:hover { color: $foreground; }
+TerminalView { height: 1fr; padding: 0 1; }
+
+/* --- Moon AI ------------------------------------------------------------------ */
+
+AIChatView {
+    width: 46;
+    background: $surface;
+    border-left: vkey $moon-line;
+}
+#ai-model { margin: 0 1; }
+#ai-log { height: 1fr; padding: 0 1; }
+.ai-question { margin-top: 1; color: $foreground; }
+.ai-reply { margin-top: 1; color: $accent; }
+.ai-error { margin-top: 1; color: $warning; }
+#ai-context { margin: 0 1; background: $surface; border: none; }
+
+/* --- Extensions ---------------------------------------------------------------- */
+
+#extension-list { height: 1fr; }
+.extension-card {
+    height: auto;
+    margin: 0 1 1 1;
+    padding: 1;
+    background: $panel;
+    border: round $moon-line;
+}
+.extension-card:hover { border: round $primary; }
+.extension-icon { width: 3; }
+.extension-text { width: 1fr; height: auto; }
+.extension-switch { width: auto; }
+
+/* --- Status bar ------------------------------------------------------------------ */
+
+StatusBar {
+    height: 1;
+    background: $panel;
+    color: $moon-muted;
+}
+.status-item { width: auto; padding: 0 1; }
+.status-spacer { width: 1fr; }
+#status-branch { color: $foreground; }
+#status-update { color: $success; text-style: bold; }
+#status-theme:hover { color: $foreground; }
+
+/* --- Zen mode ----------------------------------------------------------------------- */
+
+WorkspaceScreen.zen ActivityBar,
+WorkspaceScreen.zen #sidebar,
+WorkspaceScreen.zen #panel,
+WorkspaceScreen.zen StatusBar,
+WorkspaceScreen.zen #editors > ContentTabs { display: none; }
+
+/* --- Welcome screen ---------------------------------------------------------------- */
+
+#welcome-body { height: 1fr; align: center middle; }
+#logo { width: auto; margin-top: 1; }
+#logo-subtitle { width: auto; color: $secondary; text-style: bold; margin-bottom: 1; }
+#tagline { width: auto; color: $moon-muted; margin-bottom: 2; }
+#welcome-menu, #welcome-recent { width: 52; height: auto; }
+#welcome-recent { margin-top: 1; }
+.recent-title { color: $moon-muted; text-style: bold; padding: 0 2; }
+.menu-row { height: 1; }
+.menu-label { width: 1fr; padding: 0 2; }
+.menu-label:hover { background: $panel; color: $primary; }
+.menu-key { width: 3; color: $primary; text-style: bold; }
+#welcome-footer { width: auto; margin-top: 2; color: $moon-muted; }
+
+/* --- Dialogs ------------------------------------------------------------------------- */
+
+.dialog-screen { align: center top; background: $background 60%; }
+.dialog {
+    width: 72;
+    height: auto;
+    max-height: 80%;
+    margin-top: 3;
+    padding: 1 2;
+    background: $surface;
+    border: round $primary;
+}
+.dialog-title { text-style: bold; color: $foreground; margin-bottom: 1; }
+.dialog Input { border: round $moon-line; background: $background; }
+.dialog Input:focus { border: round $primary; }
+.dialog OptionList { height: auto; max-height: 18; background: $surface; }
+.dialog-buttons { height: auto; align-horizontal: right; margin-top: 1; }
+.dialog-buttons Button { margin-left: 1; }
+.field-label { color: $moon-muted; margin-top: 1; }
+.folder #folder-tree { height: 16; border: round $moon-line; }
+.shortcuts { width: 64; }
+.shortcut-group { color: $primary; text-style: bold; margin-top: 1; }

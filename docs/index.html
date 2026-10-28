@@ -1,145 +1,591 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moon Code · Editor de código para la terminal</title>
-<meta name="description" content="Moon Code: editor de código para la terminal con explorador, pestañas, temas Moon y chat de IA local.">
+<title>Moon Code — The code editor that lives in your terminal</title>
+<meta name="description" content="Moon Code is a fast, open source, VS Code style editor for the terminal: explorer, tabs, autocomplete, integrated terminal, one-key run for 50+ languages, extensions and local AI. For Ubuntu, Debian and macOS.">
+<meta property="og:title" content="Moon Code — The code editor that lives in your terminal">
+<meta property="og:description" content="A VS Code style editor for the terminal. Open source, fast, with local AI.">
+<meta property="og:image" content="https://moon-technologiesco.github.io/moon-code/media/code-and-run.png">
 <link rel="icon" href="icons/moon-code.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #14151f; --panel: #1f2335; --line: #2f3550;
-    --fg: #c0caf5; --muted: #8a93b8; --accent: #7aa2f7; --accent2: #bb9af7;
+    --bg: #0b0c14; --bg-2: #10121d; --panel: #161927; --panel-2: #1c2033; --line: #262b42;
+    --fg: #e6e9f8; --muted: #9098bd; --dim: #6b7299;
+    --accent: #7aa2f7; --accent-2: #bb9af7; --cyan: #7dcfff; --green: #9ece6a;
+    --radius: 16px;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
-    margin: 0; background: radial-gradient(1200px 600px at 50% -10%, #242a4a 0%, var(--bg) 60%);
-    color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.65 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+  img, video { max-width: 100%; display: block; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+  .glow {
+    position: absolute; inset: 0 0 auto 0; height: 900px; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(700px 380px at 20% 0%, rgba(122,162,247,.20), transparent 70%),
+      radial-gradient(600px 380px at 85% 10%, rgba(187,154,247,.18), transparent 70%);
+  }
 
-  nav { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 0; }
-  .brand { font-weight: 700; font-size: 1.1rem; color: var(--fg); }
-  .nav-links a { margin-left: 1.5rem; color: var(--muted); }
+  /* Nav */
+  nav.top {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px);
+    background: rgba(11,12,20,.72); border-bottom: 1px solid rgba(38,43,66,.7);
+  }
+  nav.top .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--fg); font-size: 1.05rem; }
+  .brand img { width: 30px; height: 30px; }
+  .brand:hover { text-decoration: none; }
+  .nav-links { display: flex; gap: 22px; margin-left: 12px; }
+  .nav-links a { color: var(--muted); font-size: .95rem; font-weight: 500; }
+  .nav-links a:hover { color: var(--fg); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .lang button {
+    background: none; border: 0; color: var(--muted); font: 600 .8rem Inter, sans-serif;
+    padding: 6px 12px; cursor: pointer;
+  }
+  .lang button.on { background: var(--panel-2); color: var(--fg); }
 
-  .hero { text-align: center; padding: 4rem 0 3rem; }
-  .hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 1.1; margin: 0 0 1rem; letter-spacing: -.02em; }
-  .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero p { color: var(--muted); font-size: 1.15rem; max-width: 640px; margin: 0 auto 2rem; }
-  .cta { display: inline-flex; gap: .75rem; flex-wrap: wrap; justify-content: center; }
-  .btn { padding: .7rem 1.3rem; border-radius: 10px; font-weight: 600; border: 1px solid var(--line); color: var(--fg); }
-  .btn.primary { background: var(--accent); color: #101320; border-color: var(--accent); }
-  .btn:hover { text-decoration: none; filter: brightness(1.1); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 12px;
+    font-weight: 600; font-size: .95rem; border: 1px solid var(--line); color: var(--fg); background: var(--panel);
+    transition: transform .15s ease, background .15s ease, border-color .15s ease; cursor: pointer;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); border-color: #3a4166; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0c14; border: 0; }
+  .btn.small { padding: 7px 14px; font-size: .85rem; border-radius: 10px; }
+
+  /* Hero */
+  header.hero { position: relative; padding: 84px 0 40px; text-align: center; }
+  header.hero .wrap { position: relative; z-index: 1; }
+  .badge {
+    display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 999px;
+    background: rgba(122,162,247,.1); border: 1px solid rgba(122,162,247,.3); color: #c7d2fe; font-size: .85rem; font-weight: 500;
+  }
+  .badge b { color: var(--green); }
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 4.4rem); line-height: 1.05; letter-spacing: -.035em; margin: 22px auto 18px;
+    max-width: 900px; font-weight: 800;
+  }
+  h1 .grad { background: linear-gradient(90deg, #c7d2fe, var(--accent) 40%, var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); font-size: 1.2rem; max-width: 680px; margin: 0 auto 30px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .oneliner {
+    margin: 28px auto 0; max-width: 760px; display: flex; align-items: center; gap: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 18px; text-align: left;
+  }
+  .oneliner code { font-family: var(--mono); font-size: .9rem; color: #c7d2fe; overflow-x: auto; white-space: nowrap; flex: 1; scrollbar-width: none; }
+  .oneliner code::-webkit-scrollbar { display: none; }
+  .oneliner .prompt { color: var(--accent-2); }
+  .note { color: var(--dim); font-size: .85rem; margin-top: 10px; }
 
   .window {
-    margin: 3rem auto 0; max-width: 860px; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.45);
+    margin: 56px auto 0; max-width: 1100px; border-radius: 14px; overflow: hidden; background: #1a1b26;
+    border: 1px solid #2a2f48; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03) inset;
   }
-  .titlebar { display: flex; gap: 8px; align-items: center; padding: .7rem 1rem; background: #181b2b; border-bottom: 1px solid var(--line); }
-  .dot { width: 12px; height: 12px; border-radius: 50%; }
-  .titlebar .name { margin-left: auto; margin-right: auto; color: var(--muted); font-size: .9rem; transform: translateX(-30px); }
-  pre.demo { margin: 0; padding: 1.25rem 1.5rem; font: 14px/1.6 ui-monospace, "JetBrains Mono", Menlo, monospace; color: var(--fg); overflow-x: auto; }
-  .k { color: var(--accent2); } .s { color: #9ece6a; } .c { color: #565f89; } .n { color: #ff9e64; } .f { color: var(--accent); }
+  .window video { width: 100%; aspect-ratio: 1600 / 960; object-fit: cover; background: #1a1b26; }
 
-  section { padding: 3.5rem 0; }
-  section h2 { font-size: 1.9rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
-  section > p.lead { color: var(--muted); margin: 0 0 2rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem; }
-  .card h3 { margin: .2rem 0 .4rem; font-size: 1.05rem; }
+  /* Sections */
+  section { padding: 96px 0; position: relative; }
+  section.alt { background: linear-gradient(180deg, transparent, var(--bg-2) 18%, var(--bg-2) 82%, transparent); }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; }
+  h2 { font-size: clamp(1.8rem, 4vw, 2.7rem); letter-spacing: -.025em; line-height: 1.15; margin: 10px 0 14px; font-weight: 800; }
+  .section-lead { color: var(--muted); font-size: 1.1rem; max-width: 640px; margin: 0 0 44px; }
+  .center { text-align: center; }
+  .center .section-lead { margin-left: auto; margin-right: auto; }
+
+  .langs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 900px; margin: 0 auto; }
+  .langs span { font-family: var(--mono); font-size: .8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; background: var(--panel); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), #131624); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px; transition: border-color .2s ease, transform .2s ease;
+  }
+  .card:hover { border-color: #3a4166; transform: translateY(-2px); }
+  .card .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; background: var(--panel-2); border: 1px solid var(--line); margin-bottom: 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.08rem; }
   .card p { margin: 0; color: var(--muted); font-size: .95rem; }
-  .ico { font-size: 1.6rem; }
 
-  .install { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
-  .install .card h3 { color: var(--fg); }
-  code, pre.code { font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size: .9rem; }
-  pre.code { background: #111320; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; margin: .6rem 0 0; }
-
-  footer { border-top: 1px solid var(--line); margin-top: 3rem; padding: 2rem 0; color: var(--muted); font-size: .9rem; }
-  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-
-  @media (max-width: 640px) {
-    .nav-links a { margin-left: .9rem; }
-    .titlebar .name { transform: none; }
+  /* Demos */
+  .demo-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .demo-tabs button {
+    background: var(--panel); border: 1px solid var(--line); color: var(--muted); border-radius: 999px;
+    padding: 9px 18px; font: 600 .9rem Inter, sans-serif; cursor: pointer;
   }
+  .demo-tabs button.on { color: var(--fg); border-color: var(--accent); background: rgba(122,162,247,.12); }
+  .demo-layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+  .demo-layout .window { margin: 0; }
+  .demo-copy h3 { margin: 0 0 8px; font-size: 1.25rem; }
+  .demo-copy p { color: var(--muted); margin: 0 0 14px; }
+  .demo-copy ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  .demo-copy li { margin-bottom: 6px; }
+  .demo-copy kbd, .shortcuts kbd {
+    font-family: var(--mono); font-size: .78rem; background: var(--panel-2); border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; color: var(--fg); white-space: nowrap;
+  }
+
+  /* Install */
+  .install-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 26px; overflow-x: auto; }
+  .install-tabs button {
+    background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+    padding: 12px 16px; font: 600 .95rem Inter, sans-serif; cursor: pointer; white-space: nowrap;
+  }
+  .install-tabs button.on { color: var(--fg); border-bottom-color: var(--accent); }
+  .install-panel { display: none; }
+  .install-panel.on { display: block; }
+  .steps { display: grid; gap: 16px; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 14px; }
+  .step .n { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-2); border: 1px solid var(--line); font-weight: 700; font-size: .9rem; color: var(--accent); }
+  .step h4 { margin: 4px 0 6px; }
+  .step p { margin: 0 0 8px; color: var(--muted); }
+  .code {
+    position: relative; background: #0d0f19; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 92px 14px 16px; font-family: var(--mono); font-size: .88rem; color: #c7d2fe; overflow-x: auto; white-space: pre;
+  }
+  .code .copy { position: absolute; top: 8px; right: 8px; }
+  .copy {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); border-radius: 8px;
+    padding: 5px 10px; font: 600 .78rem Inter, sans-serif; cursor: pointer;
+  }
+  .copy:hover { color: var(--fg); }
+
+  /* Shortcuts & extensions */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .shortcuts { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .shortcuts td { padding: 11px 18px; border-bottom: 1px solid var(--line); font-size: .95rem; }
+  .shortcuts tr:last-child td { border-bottom: 0; }
+  .shortcuts td:first-child { color: var(--muted); }
+  .shortcuts td:last-child { text-align: right; }
+  pre.ext { margin: 0; background: #0d0f19; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; font: .85rem/1.7 var(--mono); color: #c0caf5; overflow-x: auto; }
+  pre.ext .k { color: var(--accent-2); } pre.ext .s { color: var(--green); } pre.ext .f { color: var(--accent); } pre.ext .c { color: #565f89; font-style: italic; }
+
+  /* FAQ */
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p { color: var(--muted); margin: 10px 0 0; }
+
+  /* CTA + footer */
+  .final { text-align: center; padding: 72px 24px; border-radius: 24px; border: 1px solid var(--line);
+    background: radial-gradient(600px 240px at 50% 0%, rgba(122,162,247,.18), transparent 70%), var(--panel); }
+  footer { border-top: 1px solid var(--line); padding: 34px 0 48px; color: var(--dim); font-size: .9rem; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+    .demo-layout, .two { grid-template-columns: 1fr; }
+    section { padding: 72px 0; }
+  }
+  @media (max-width: 520px) {
+    header.hero { padding-top: 56px; }
+    .nav-right .btn { display: none; }
+    .oneliner { flex-direction: column; align-items: stretch; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav>
-    <div class="brand">🌙 Moon Code</div>
+<div class="glow"></div>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icons/moon-code.svg" alt=""> Moon Code</a>
     <div class="nav-links">
-      <a href="#funciones">Funciones</a>
-      <a href="#instalar">Instalar</a>
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#demos" data-i18n="nav.demos">Demos</a>
+      <a href="#install" data-i18n="nav.install">Install</a>
+      <a href="#extensions" data-i18n="nav.extensions">Extensions</a>
       <a href="https://github.com/Moon-TechnologiesCO/moon-code">GitHub</a>
     </div>
-  </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="en" class="on">EN</button>
+        <button data-lang="es">ES</button>
+      </div>
+      <a class="btn small primary" href="#install" data-i18n="nav.download">Download</a>
+    </div>
+  </div>
+</nav>
 
-  <header class="hero">
-    <h1>El editor de código<br><span>dentro de tu terminal</span></h1>
-    <p>Moon Code reúne explorador, pestañas, resaltado de sintaxis, temas Moon y un chat de IA que corre en tu equipo con Ollama. Rápido, sin Electron y con diseño cuidado.</p>
+<header class="hero">
+  <div class="wrap">
+    <span class="badge"><b>●</b> <span data-i18n="hero.badge">v0.2.0 · Open source · MIT license</span></span>
+    <h1 data-i18n="hero.title">The code editor that <span class="grad">lives in your terminal</span></h1>
+    <p class="lead" data-i18n="hero.lead">Everything you love about VS Code — explorer, tabs, autocomplete, an integrated terminal, extensions and AI — rebuilt for the terminal. Fast, keyboard-first and open source.</p>
     <div class="cta">
-      <a class="btn primary" href="#instalar">Instalar</a>
-      <a class="btn" href="https://github.com/Moon-TechnologiesCO/moon-code">Ver código</a>
+      <a class="btn primary" href="#install" data-i18n="hero.install">Install Moon Code</a>
+      <a class="btn" href="#demos" data-i18n="hero.watch">▶ Watch the demos</a>
     </div>
-
-    <div class="window" role="img" aria-label="Vista previa de Moon Code">
-      <div class="titlebar">
-        <span class="dot" style="background:#ff5f57"></span>
-        <span class="dot" style="background:#febc2e"></span>
-        <span class="dot" style="background:#28c840"></span>
-        <span class="name">Moon Code · main.py</span>
-      </div>
-<pre class="demo"><span class="c"># Moon Code abre tu proyecto en la terminal</span>
-<span class="k">from</span> moon.core <span class="k">import</span> themes
-
-<span class="k">def</span> <span class="f">saludar</span>(nombre: <span class="k">str</span>) -&gt; <span class="k">str</span>:
-    <span class="k">return</span> <span class="s">f"Hola, {nombre}"</span>
-
-<span class="f">print</span>(saludar(<span class="s">"Moon"</span>))  <span class="c"># <span class="n">Hola, Moon</span></span></pre>
+    <div class="oneliner">
+      <code><span class="prompt">$</span> curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash</code>
+      <button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash" data-i18n="copy">Copy</button>
     </div>
-  </header>
+    <p class="note" data-i18n="hero.note">Ubuntu · Debian · macOS — installs everything it needs.</p>
 
-  <section id="funciones">
-    <h2>Funciones</h2>
-    <p class="lead">Lo esencial de un editor moderno, sin salir de la terminal.</p>
+    <div class="window">
+      <video src="media/code-and-run.mp4" poster="media/code-and-run.png" autoplay muted loop playsinline preload="metadata" aria-label="Moon Code demo: writing and running code"></video>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap center">
+    <div class="eyebrow" data-i18n="langs.eyebrow">Polyglot</div>
+    <h2 data-i18n="langs.title">Write and run 50+ languages</h2>
+    <p class="section-lead" data-i18n="langs.lead">Press F5 to run the file you're editing, or ctrl+F5 to run the whole project. Moon Code detects npm, Cargo, Go, .NET, Gradle, Maven, Make and more.</p>
+    <div class="langs">
+      <span>Python</span><span>JavaScript</span><span>TypeScript</span><span>Go</span><span>Rust</span><span>C</span><span>C++</span><span>C#</span><span>F#</span><span>Java</span><span>Kotlin</span><span>Scala</span><span>Swift</span><span>Dart</span><span>Ruby</span><span>PHP</span><span>Perl</span><span>Lua</span><span>R</span><span>Julia</span><span>Elixir</span><span>Erlang</span><span>Haskell</span><span>OCaml</span><span>Zig</span><span>Nim</span><span>V</span><span>D</span><span>Fortran</span><span>Pascal</span><span>Bash</span><span>Zsh</span><span>Fish</span><span>PowerShell</span><span>HTML</span><span>CSS</span><span>SQL</span><span>JSON</span><span>YAML</span><span>TOML</span><span>Markdown</span><span>Makefile</span><span>Dockerfile</span>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="features.eyebrow">Features</div>
+    <h2 data-i18n="features.title">A complete editor. No window required.</h2>
+    <p class="section-lead" data-i18n="features.lead">Moon Code feels familiar from the first keystroke: the layout, the shortcuts and the workflow you already know.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🗂️</div><h3>Explorador de archivos</h3><p>Árbol de carpetas con iconos por tipo de archivo.</p></div>
-      <div class="card"><div class="ico">🎨</div><h3>Resaltado de sintaxis</h3><p>Python, JavaScript, TypeScript, Bash, Lua, Rust, Go y más.</p></div>
-      <div class="card"><div class="ico">🌙</div><h3>Temas Moon</h3><p>Versión noche y día, pensadas para leer largas sesiones de código.</p></div>
-      <div class="card"><div class="ico">🤖</div><h3>IA local</h3><p>Chat con modelos de Ollama. Tu código no sale de tu equipo.</p></div>
-      <div class="card"><div class="ico">⚡</div><h3>Rápido</h3><p>Una sola aplicación de Python ligera, sin navegador embebido.</p></div>
-      <div class="card"><div class="ico">⬆️</div><h3>Actualizable</h3><p><code>moon update</code> instala la última versión publicada.</p></div>
+      <div class="card"><div class="ico">🗂️</div><h3 data-i18n="f1.t">Explorer & tabs</h3><p data-i18n="f1.d">File tree with icons, tabs with unsaved markers, Quick Open with fuzzy search (ctrl+p).</p></div>
+      <div class="card"><div class="ico">💡</div><h3 data-i18n="f2.t">Smart editing</h3><p data-i18n="f2.d">Syntax highlighting, autocomplete, auto-indent, bracket pairs, find & replace, go to line, toggle comments.</p></div>
+      <div class="card"><div class="ico">⌨️</div><h3 data-i18n="f3.t">Integrated terminal</h3><p data-i18n="f3.d">A real shell inside the editor (ctrl+j). Run git, npm, docker or anything else without leaving.</p></div>
+      <div class="card"><div class="ico">▶</div><h3 data-i18n="f4.t">One-key run</h3><p data-i18n="f4.d">F5 runs the active file, ctrl+F5 the project. Compiled languages are built and run for you.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3 data-i18n="f5.t">Local AI</h3><p data-i18n="f5.d">Chat with models running on your machine through Ollama. Ask about the active file — your code never leaves your computer.</p></div>
+      <div class="card"><div class="ico">🧩</div><h3 data-i18n="f6.t">Extensions</h3><p data-i18n="f6.d">Turn features on and off in one click, or write your own extension in a single Python file.</p></div>
+      <div class="card"><div class="ico">🔍</div><h3 data-i18n="f7.t">Search & Git</h3><p data-i18n="f7.d">Search across the whole project (uses ripgrep when installed) and see changed files and your branch.</p></div>
+      <div class="card"><div class="ico">🌙</div><h3 data-i18n="f8.t">Beautiful by default</h3><p data-i18n="f8.d">A macOS-inspired interface with Moon Night, Moon Midnight and Moon Light themes. Starts in a blink.</p></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="instalar">
-    <h2>Instalar</h2>
-    <p class="lead">Elige la opción que te quede mejor. El paquete trae todas sus dependencias.</p>
-    <div class="install">
-      <div class="card">
-        <h3>Ubuntu / Debian (.deb)</h3>
-        <p>Descarga el paquete desde las releases y ábrelo, o instálalo desde la terminal:</p>
-        <pre class="code">sudo apt install ./moon-code_0.1.0_amd64.deb</pre>
-        <p style="margin-top:.6rem">Después búscalo en el menú de aplicaciones como <b>Moon Code</b>.</p>
-      </div>
-      <div class="card">
-        <h3>Con pip</h3>
-        <p>Si ya usas Python 3.11 o superior:</p>
-        <pre class="code">pip install "git+https://github.com/Moon-TechnologiesCO/moon-code.git"
-moon ./mi-proyecto</pre>
+<section id="demos">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="demos.eyebrow">See it in action</div>
+    <h2 data-i18n="demos.title">Demos</h2>
+    <p class="section-lead" data-i18n="demos.lead">Recorded from the real app — every frame is Moon Code running in a terminal.</p>
+    <div class="demo-tabs" role="tablist">
+      <button class="on" data-demo="getting-started" data-i18n="d1.tab">Getting started</button>
+      <button data-demo="code-and-run" data-i18n="d2.tab">Code & run</button>
+      <button data-demo="power-tools" data-i18n="d3.tab">Power tools</button>
+      <button data-demo="moon-ai" data-i18n="d4.tab">Moon AI</button>
+    </div>
+    <div class="demo-layout">
+      <div class="window"><video id="demo-video" src="media/getting-started.mp4" poster="media/getting-started.png" controls muted playsinline preload="metadata"></video></div>
+      <div class="demo-copy">
+        <div data-demo-copy="getting-started">
+          <h3 data-i18n="d1.t">From zero to a project</h3>
+          <p data-i18n="d1.d">Open Moon Code from your apps menu. The start screen lets you create a project from a template, open a folder or jump back into a recent one.</p>
+          <ul><li data-i18n="d1.l1">Templates: Python, Node.js, Web, C# and more</li><li data-i18n="d1.l2">Keys on the start screen: <kbd>n</kbd> <kbd>o</kbd> <kbd>p</kbd> <kbd>r</kbd></li></ul>
+        </div>
+        <div data-demo-copy="code-and-run" hidden>
+          <h3 data-i18n="d2.t">Write code, press F5</h3>
+          <p data-i18n="d2.d">Auto-indent, bracket pairs and autocomplete keep you in flow. F5 saves and runs the file in the integrated terminal.</p>
+          <ul><li data-i18n="d2.l1"><kbd>Tab</kbd> accepts a suggestion</li><li data-i18n="d2.l2"><kbd>F5</kbd> run file · <kbd>ctrl+F5</kbd> run project</li></ul>
+        </div>
+        <div data-demo-copy="power-tools" hidden>
+          <h3 data-i18n="d3.t">Find anything, change everything</h3>
+          <p data-i18n="d3.d">Quick Open, the command palette, project search, extensions and themes — all from the keyboard.</p>
+          <ul><li data-i18n="d3.l1"><kbd>ctrl+p</kbd> Quick Open · <kbd>F1</kbd> commands</li><li data-i18n="d3.l2">Themes: Moon Night, Midnight and Light</li></ul>
+        </div>
+        <div data-demo-copy="moon-ai" hidden>
+          <h3 data-i18n="d4.t">AI that stays on your machine</h3>
+          <p data-i18n="d4.d">Moon AI talks to Ollama on localhost. Include the active file as context and ask questions in plain language.</p>
+          <ul><li data-i18n="d4.l1"><kbd>ctrl+l</kbd> opens the chat</li><li data-i18n="d4.l2">Works offline with any Ollama model</li></ul>
+        </div>
       </div>
     </div>
-  </section>
-</div>
+  </div>
+</section>
+
+<section id="install" class="alt">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="install.eyebrow">Install</div>
+    <h2 data-i18n="install.title">Choose how you want to install</h2>
+    <p class="section-lead" data-i18n="install.lead">The automatic installer does everything for you. Prefer to do it by hand? Every manual option is here too.</p>
+    <div class="install-tabs" role="tablist">
+      <button class="on" data-tab="auto" data-i18n="it.auto">⚡ Automatic</button>
+      <button data-tab="deb" data-i18n="it.deb">Ubuntu / Debian (.deb)</button>
+      <button data-tab="mac" data-i18n="it.mac">macOS</button>
+      <button data-tab="pip" data-i18n="it.pip">Manual (pip)</button>
+    </div>
+
+    <div class="install-panel on" data-panel="auto">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div>
+          <h4 data-i18n="auto.s1">Run one command</h4>
+          <p data-i18n="auto.s1d">Open a terminal and paste this. It detects your system: on Ubuntu/Debian it installs the .deb with apt, on macOS it installs Moon Code and creates the app.</p>
+          <div class="code">curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash<button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash" data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">2</div><div>
+          <h4 data-i18n="auto.s2">Open it</h4>
+          <p data-i18n="auto.s2d">Find <b>Moon Code</b> in your apps menu (Launchpad on macOS), or run it from any folder:</p>
+          <div class="code">moon .<button class="copy" data-copy="moon ." data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">3</div><div>
+          <h4 data-i18n="auto.s3">Stay up to date</h4>
+          <p data-i18n="auto.s3d">Moon Code tells you when a new version is out. Update with:</p>
+          <div class="code">moon update<button class="copy" data-copy="moon update" data-i18n="copy">Copy</button></div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="install-panel" data-panel="deb">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div>
+          <h4 data-i18n="deb.s1">Download the package</h4>
+          <p data-i18n="deb.s1d">The package includes all its dependencies. You only need Python 3.10 or newer, which Ubuntu and Debian already include.</p>
+          <a class="btn small primary" href="https://github.com/Moon-TechnologiesCO/moon-code/releases/latest" data-i18n="deb.download">Download .deb from Releases</a>
+        </div></div>
+        <div class="step"><div class="n">2</div><div>
+          <h4 data-i18n="deb.s2">Install it</h4>
+          <p data-i18n="deb.s2d">Double-click the file, or install it from the terminal in the folder where you downloaded it:</p>
+          <div class="code">sudo apt install ./moon-code_0.2.0_amd64.deb<button class="copy" data-copy="sudo apt install ./moon-code_0.2.0_amd64.deb" data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">3</div><div>
+          <h4 data-i18n="deb.s3">Open it</h4>
+          <p data-i18n="deb.s3d">Search for <b>Moon Code</b> in your applications menu. It opens in a terminal, ready to code.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="install-panel" data-panel="mac">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div>
+          <h4 data-i18n="mac.s1">Make sure you have Python 3.10+</h4>
+          <p data-i18n="mac.s1d">Check with <code>python3 --version</code>. If it's missing, install it with Homebrew or the Xcode command line tools:</p>
+          <div class="code">brew install python<button class="copy" data-copy="brew install python" data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">2</div><div>
+          <h4 data-i18n="mac.s2">Run the installer</h4>
+          <p data-i18n="mac.s2d">It installs Moon Code in ~/.moon-code, adds the <code>moon</code> command and creates <b>Moon Code.app</b> in ~/Applications.</p>
+          <div class="code">curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash<button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash" data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">3</div><div>
+          <h4 data-i18n="mac.s3">Open it</h4>
+          <p data-i18n="mac.s3d">Launch Moon Code from Launchpad or Spotlight. It opens in Terminal. Shortcuts use <kbd>ctrl</kbd>, like on Linux, so they work in every terminal.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="install-panel" data-panel="pip">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div>
+          <h4 data-i18n="pip.s1">Install with pip</h4>
+          <p data-i18n="pip.s1d">If you already use Python 3.10 or newer (ideally inside a virtual environment):</p>
+          <div class="code">pip install "git+https://github.com/Moon-TechnologiesCO/moon-code.git"<button class="copy" data-copy='pip install "git+https://github.com/Moon-TechnologiesCO/moon-code.git"' data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">2</div><div>
+          <h4 data-i18n="pip.s2">Open a project</h4>
+          <div class="code">moon ./my-project<button class="copy" data-copy="moon ./my-project" data-i18n="copy">Copy</button></div>
+        </div></div>
+        <div class="step"><div class="n">3</div><div>
+          <h4 data-i18n="pip.s3">Uninstall any time</h4>
+          <div class="code">curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash -s -- --uninstall<button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash -s -- --uninstall" data-i18n="copy">Copy</button></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="extensions">
+  <div class="wrap two">
+    <div>
+      <div class="eyebrow" data-i18n="keys.eyebrow">Keyboard first</div>
+      <h2 data-i18n="keys.title">Shortcuts you already know</h2>
+      <p class="section-lead" data-i18n="keys.lead">Standard Linux shortcuts, the same as VS Code. No modes to learn.</p>
+      <table class="shortcuts">
+        <tr><td data-i18n="k1">Command palette</td><td><kbd>F1</kbd></td></tr>
+        <tr><td data-i18n="k2">Quick open file</td><td><kbd>ctrl</kbd> <kbd>p</kbd></td></tr>
+        <tr><td data-i18n="k3">Save</td><td><kbd>ctrl</kbd> <kbd>s</kbd></td></tr>
+        <tr><td data-i18n="k4">Find / replace</td><td><kbd>ctrl</kbd> <kbd>f</kbd> · <kbd>ctrl</kbd> <kbd>h</kbd></td></tr>
+        <tr><td data-i18n="k5">Toggle terminal</td><td><kbd>ctrl</kbd> <kbd>j</kbd></td></tr>
+        <tr><td data-i18n="k6">Toggle sidebar</td><td><kbd>ctrl</kbd> <kbd>b</kbd></td></tr>
+        <tr><td data-i18n="k7">Run file / project</td><td><kbd>F5</kbd> · <kbd>ctrl</kbd> <kbd>F5</kbd></td></tr>
+        <tr><td data-i18n="k8">Moon AI</td><td><kbd>ctrl</kbd> <kbd>l</kbd></td></tr>
+        <tr><td data-i18n="k9">Undo / redo</td><td><kbd>ctrl</kbd> <kbd>z</kbd> · <kbd>ctrl</kbd> <kbd>y</kbd></td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="eyebrow" data-i18n="ext.eyebrow">Extensions</div>
+      <h2 data-i18n="ext.title">Make it yours in one file</h2>
+      <p class="section-lead" data-i18n="ext.lead">Built-in extensions (Code Runner, Formatter, Git, Moon AI, Autocomplete) toggle with one click. Your own extensions are a single Python file — create one from the Extensions view.</p>
+<pre class="ext"><span class="c"># ~/.config/moon-code/extensions/hello.py</span>
+NAME = <span class="s">"Hello"</span>
+DESCRIPTION = <span class="s">"Greets the active file"</span>
+
+<span class="k">def</span> <span class="f">activate</span>(api):
+    <span class="k">def</span> <span class="f">hello</span>():
+        path = api.active_file()
+        api.notify(<span class="s">f"Hello, {path.name}!"</span>)
+
+    api.add_command(<span class="s">"Hello: Greet"</span>, <span class="s">"Say hi"</span>, hello)
+    api.add_command(<span class="s">"Hello: Run tests"</span>, <span class="s">"pytest"</span>,
+                    <span class="k">lambda</span>: api.run_in_terminal(<span class="s">"pytest -q"</span>))</pre>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap" style="max-width: 820px">
+    <div class="eyebrow center" data-i18n="faq.eyebrow">FAQ</div>
+    <h2 class="center" data-i18n="faq.title">Questions</h2>
+    <details><summary data-i18n="q1">Is Moon Code free?</summary><p data-i18n="a1">Yes. It's open source under the MIT license, made by Moon Technologies.</p></details>
+    <details><summary data-i18n="q2">Does the AI send my code to the cloud?</summary><p data-i18n="a2">No. Moon AI only talks to Ollama on your own machine (localhost). Install Ollama and pull a model, for example: ollama pull gemma3n:e2b.</p></details>
+    <details><summary data-i18n="q3">Which terminals does it work in?</summary><p data-i18n="a3">Any modern terminal: GNOME Terminal, Ptyxis, Konsole, Kitty, Alacritty, WezTerm, iTerm2 and macOS Terminal. Mouse and colors are supported.</p></details>
+    <details><summary data-i18n="q4">Do I need Neovim or another editor?</summary><p data-i18n="a4">No. Moon Code is its own editor and the package installs everything it needs.</p></details>
+    <details><summary data-i18n="q5">How do I update?</summary><p data-i18n="a5">Run moon update. Moon Code checks for new versions on start and shows a notice in the status bar.</p></details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="final">
+      <h2 data-i18n="final.title">Your terminal, now a full editor.</h2>
+      <p class="section-lead" style="margin: 0 auto 26px" data-i18n="final.lead">Install Moon Code in under a minute.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install" data-i18n="final.install">Install Moon Code</a>
+        <a class="btn" href="https://github.com/Moon-TechnologiesCO/moon-code" data-i18n="final.star">⭐ Star on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
 
 <footer>
   <div class="wrap">
-    <span>© 2026 Moon Technologies · Licencia MIT</span>
-    <span><a href="https://github.com/Moon-TechnologiesCO/moon-code">GitHub</a> · <a href="https://github.com/Moon-TechnologiesCO/moon-code/issues">Reportar un problema</a></span>
+    <span>© 2026 Moon Technologies · <span data-i18n="footer.license">MIT License</span></span>
+    <span><a href="https://github.com/Moon-TechnologiesCO/moon-code">GitHub</a> · <a href="https://github.com/Moon-TechnologiesCO/moon-code/releases" data-i18n="footer.releases">Releases</a> · <a href="https://github.com/Moon-TechnologiesCO/moon-code/issues" data-i18n="footer.issues">Report an issue</a></span>
   </div>
 </footer>
+
+<script>
+const ES = {
+  "nav.features": "Funciones", "nav.demos": "Demos", "nav.install": "Instalar", "nav.extensions": "Extensiones", "nav.download": "Descargar",
+  "hero.badge": "v0.2.0 · Código abierto · Licencia MIT",
+  "hero.title": "El editor de código que <span class=\"grad\">vive en tu terminal</span>",
+  "hero.lead": "Todo lo que te gusta de VS Code — explorador, pestañas, autocompletado, terminal integrada, extensiones e IA — reconstruido para la terminal. Rápido, pensado para el teclado y de código abierto.",
+  "hero.install": "Instalar Moon Code", "hero.watch": "▶ Ver las demos",
+  "hero.note": "Ubuntu · Debian · macOS — instala todo lo que necesita.",
+  "copy": "Copiar", "copied": "¡Copiado!",
+  "langs.eyebrow": "Políglota", "langs.title": "Escribe y ejecuta más de 50 lenguajes",
+  "langs.lead": "Pulsa F5 para ejecutar el archivo que estás editando, o ctrl+F5 para ejecutar todo el proyecto. Moon Code detecta npm, Cargo, Go, .NET, Gradle, Maven, Make y más.",
+  "features.eyebrow": "Funciones", "features.title": "Un editor completo. Sin ventanas.",
+  "features.lead": "Moon Code se siente familiar desde la primera tecla: la distribución, los atajos y el flujo de trabajo que ya conoces.",
+  "f1.t": "Explorador y pestañas", "f1.d": "Árbol de archivos con iconos, pestañas que marcan cambios sin guardar y apertura rápida con búsqueda difusa (ctrl+p).",
+  "f2.t": "Edición inteligente", "f2.d": "Resaltado de sintaxis, autocompletado, autoindentación, cierre de paréntesis, buscar y reemplazar, ir a línea y comentar líneas.",
+  "f3.t": "Terminal integrada", "f3.d": "Una shell real dentro del editor (ctrl+j). Usa git, npm, docker o lo que quieras sin salir.",
+  "f4.t": "Ejecutar con una tecla", "f4.d": "F5 ejecuta el archivo activo y ctrl+F5 el proyecto. Los lenguajes compilados se compilan y ejecutan solos.",
+  "f5.t": "IA local", "f5.d": "Chatea con modelos que corren en tu equipo mediante Ollama. Pregunta sobre el archivo activo: tu código nunca sale de tu computadora.",
+  "f6.t": "Extensiones", "f6.d": "Activa y desactiva funciones con un clic, o escribe tu propia extensión en un solo archivo de Python.",
+  "f7.t": "Búsqueda y Git", "f7.d": "Busca en todo el proyecto (usa ripgrep si está instalado) y ve los archivos modificados y tu rama.",
+  "f8.t": "Bonito desde el inicio", "f8.d": "Interfaz inspirada en macOS con los temas Moon Night, Moon Midnight y Moon Light. Arranca en un instante.",
+  "demos.eyebrow": "Míralo en acción", "demos.title": "Demos",
+  "demos.lead": "Grabadas desde la app real: cada cuadro es Moon Code funcionando en una terminal.",
+  "d1.tab": "Primeros pasos", "d2.tab": "Programar y ejecutar", "d3.tab": "Herramientas", "d4.tab": "Moon AI",
+  "d1.t": "De cero a un proyecto", "d1.d": "Abre Moon Code desde el menú de aplicaciones. La pantalla de inicio te deja crear un proyecto desde una plantilla, abrir una carpeta o volver a uno reciente.",
+  "d1.l1": "Plantillas: Python, Node.js, Web, C# y más", "d1.l2": "Teclas en la pantalla de inicio: <kbd>n</kbd> <kbd>o</kbd> <kbd>p</kbd> <kbd>r</kbd>",
+  "d2.t": "Escribe código y pulsa F5", "d2.d": "La autoindentación, el cierre de paréntesis y el autocompletado te mantienen concentrado. F5 guarda y ejecuta el archivo en la terminal integrada.",
+  "d2.l1": "<kbd>Tab</kbd> acepta una sugerencia", "d2.l2": "<kbd>F5</kbd> ejecutar archivo · <kbd>ctrl+F5</kbd> ejecutar proyecto",
+  "d3.t": "Encuentra todo, cambia todo", "d3.d": "Apertura rápida, paleta de comandos, búsqueda en el proyecto, extensiones y temas, todo desde el teclado.",
+  "d3.l1": "<kbd>ctrl+p</kbd> apertura rápida · <kbd>F1</kbd> comandos", "d3.l2": "Temas: Moon Night, Midnight y Light",
+  "d4.t": "IA que se queda en tu equipo", "d4.d": "Moon AI habla con Ollama en localhost. Incluye el archivo activo como contexto y pregunta en lenguaje natural.",
+  "d4.l1": "<kbd>ctrl+l</kbd> abre el chat", "d4.l2": "Funciona sin internet con cualquier modelo de Ollama",
+  "install.eyebrow": "Instalar", "install.title": "Elige cómo quieres instalarlo",
+  "install.lead": "El instalador automático lo hace todo por ti. ¿Prefieres hacerlo a mano? Aquí están todas las opciones manuales.",
+  "it.auto": "⚡ Automática", "it.deb": "Ubuntu / Debian (.deb)", "it.mac": "macOS", "it.pip": "Manual (pip)",
+  "auto.s1": "Ejecuta un comando", "auto.s1d": "Abre una terminal y pega esto. Detecta tu sistema: en Ubuntu/Debian instala el .deb con apt; en macOS instala Moon Code y crea la app.",
+  "auto.s2": "Ábrelo", "auto.s2d": "Busca <b>Moon Code</b> en tu menú de aplicaciones (Launchpad en macOS), o ejecútalo desde cualquier carpeta:",
+  "auto.s3": "Mantente al día", "auto.s3d": "Moon Code te avisa cuando sale una versión nueva. Actualiza con:",
+  "deb.s1": "Descarga el paquete", "deb.s1d": "El paquete trae todas sus dependencias. Solo necesitas Python 3.10 o superior, que Ubuntu y Debian ya incluyen.",
+  "deb.download": "Descargar .deb desde Releases",
+  "deb.s2": "Instálalo", "deb.s2d": "Haz doble clic en el archivo, o instálalo desde la terminal en la carpeta donde lo descargaste:",
+  "deb.s3": "Ábrelo", "deb.s3d": "Busca <b>Moon Code</b> en tu menú de aplicaciones. Se abre en una terminal, listo para programar.",
+  "mac.s1": "Asegúrate de tener Python 3.10+", "mac.s1d": "Compruébalo con <code>python3 --version</code>. Si no lo tienes, instálalo con Homebrew o con las herramientas de línea de comandos de Xcode:",
+  "mac.s2": "Ejecuta el instalador", "mac.s2d": "Instala Moon Code en ~/.moon-code, añade el comando <code>moon</code> y crea <b>Moon Code.app</b> en ~/Applications.",
+  "mac.s3": "Ábrelo", "mac.s3d": "Abre Moon Code desde Launchpad o Spotlight. Se abre en Terminal. Los atajos usan <kbd>ctrl</kbd>, igual que en Linux, así funcionan en cualquier terminal.",
+  "pip.s1": "Instala con pip", "pip.s1d": "Si ya usas Python 3.10 o superior (idealmente dentro de un entorno virtual):",
+  "pip.s2": "Abre un proyecto", "pip.s3": "Desinstala cuando quieras",
+  "keys.eyebrow": "Pensado para el teclado", "keys.title": "Atajos que ya conoces", "keys.lead": "Atajos estándar de Linux, los mismos de VS Code. Sin modos que aprender.",
+  "k1": "Paleta de comandos", "k2": "Abrir archivo rápido", "k3": "Guardar", "k4": "Buscar / reemplazar", "k5": "Mostrar terminal",
+  "k6": "Mostrar barra lateral", "k7": "Ejecutar archivo / proyecto", "k8": "Moon AI", "k9": "Deshacer / rehacer",
+  "ext.eyebrow": "Extensiones", "ext.title": "Hazlo tuyo con un solo archivo",
+  "ext.lead": "Las extensiones incluidas (Code Runner, Formatter, Git, Moon AI, Autocomplete) se activan con un clic. Las tuyas son un solo archivo de Python: créalas desde la vista de Extensiones.",
+  "faq.eyebrow": "Preguntas frecuentes", "faq.title": "Preguntas",
+  "q1": "¿Moon Code es gratis?", "a1": "Sí. Es código abierto con licencia MIT, hecho por Moon Technologies.",
+  "q2": "¿La IA envía mi código a la nube?", "a2": "No. Moon AI solo habla con Ollama en tu propio equipo (localhost). Instala Ollama y descarga un modelo, por ejemplo: ollama pull gemma3n:e2b.",
+  "q3": "¿En qué terminales funciona?", "a3": "En cualquier terminal moderna: GNOME Terminal, Ptyxis, Konsole, Kitty, Alacritty, WezTerm, iTerm2 y Terminal de macOS. Soporta ratón y colores.",
+  "q4": "¿Necesito Neovim u otro editor?", "a4": "No. Moon Code es su propio editor y el paquete instala todo lo que necesita.",
+  "q5": "¿Cómo actualizo?", "a5": "Ejecuta moon update. Moon Code busca versiones nuevas al iniciar y muestra un aviso en la barra de estado.",
+  "final.title": "Tu terminal, ahora un editor completo.", "final.lead": "Instala Moon Code en menos de un minuto.",
+  "final.install": "Instalar Moon Code", "final.star": "⭐ Dale una estrella en GitHub",
+  "footer.license": "Licencia MIT", "footer.releases": "Versiones", "footer.issues": "Reportar un problema",
+};
+
+// English is the HTML itself; remember it so we can switch back.
+const EN = {};
+document.querySelectorAll("[data-i18n]").forEach(el => { EN[el.dataset.i18n] = el.innerHTML; });
+EN.copied = "Copied!";
+
+let lang = "en";
+function setLang(next) {
+  lang = next;
+  const table = next === "es" ? ES : EN;
+  document.documentElement.lang = next;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const value = table[el.dataset.i18n];
+    if (value !== undefined) el.innerHTML = value;
+  });
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === next));
+  try { localStorage.setItem("moon-lang", next); } catch (e) {}
+}
+document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
+let saved = null;
+try { saved = localStorage.getItem("moon-lang"); } catch (e) {}
+const fromUrl = new URLSearchParams(location.search).get("lang");
+if ((fromUrl || saved) === "es") setLang("es");
+
+// Copy buttons.
+document.querySelectorAll(".copy").forEach(button => {
+  button.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(button.dataset.copy); } catch (e) { return; }
+    const table = lang === "es" ? ES : EN;
+    button.textContent = table.copied;
+    setTimeout(() => { button.textContent = table.copy; }, 1500);
+  });
+});
+
+// Install tabs.
+document.querySelectorAll(".install-tabs button").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".install-tabs button").forEach(b => b.classList.toggle("on", b === button));
+    document.querySelectorAll(".install-panel").forEach(p => p.classList.toggle("on", p.dataset.panel === button.dataset.tab));
+  });
+});
+
+// Demo player.
+const video = document.getElementById("demo-video");
+document.querySelectorAll(".demo-tabs button").forEach(button => {
+  button.addEventListener("click", () => {
+    const name = button.dataset.demo;
+    document.querySelectorAll(".demo-tabs button").forEach(b => b.classList.toggle("on", b === button));
+    document.querySelectorAll("[data-demo-copy]").forEach(c => { c.hidden = c.dataset.demoCopy !== name; });
+    video.poster = `media/${name}.png`;
+    video.src = `media/${name}.mp4`;
+    video.play().catch(() => {});
+  });
+});
+</script>
 </body>
 </html>

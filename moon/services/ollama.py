@@ -1,21 +1,17 @@
-"""Cliente de IA local para Moon Code. Habla con Ollama (http://localhost:11434)."""
+"""Local AI client. Talks to Ollama's HTTP API."""
 
 import json
-import os
 import urllib.request
 from collections.abc import Iterator
 
-OLLAMA_URL = os.environ.get("MOON_OLLAMA_URL", "http://localhost:11434")
-DEFAULT_MODEL = os.environ.get("MOON_MODEL", "gemma3n:e2b")
+DEFAULT_URL = "http://localhost:11434"
 
 
-def stream_chat(model: str, messages: list[dict]) -> Iterator[str]:
-    """Devuelve los trozos de texto de la respuesta según llegan."""
+def stream_chat(model: str, messages: list[dict], url: str = DEFAULT_URL) -> Iterator[str]:
+    """Yield pieces of the reply as they arrive."""
     body = json.dumps({"model": model, "messages": messages, "stream": True}).encode()
     request = urllib.request.Request(
-        f"{OLLAMA_URL}/api/chat",
-        data=body,
-        headers={"Content-Type": "application/json"},
+        f"{url}/api/chat", data=body, headers={"Content-Type": "application/json"}
     )
     with urllib.request.urlopen(request, timeout=300) as response:
         for line in response:
@@ -27,10 +23,10 @@ def stream_chat(model: str, messages: list[dict]) -> Iterator[str]:
                 break
 
 
-def list_models() -> list[str]:
-    """Modelos instalados en Ollama, o lista vacía si el servidor no responde."""
+def list_models(url: str = DEFAULT_URL) -> list[str]:
+    """Installed models, or an empty list when Ollama isn't running."""
     try:
-        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=3) as response:
+        with urllib.request.urlopen(f"{url}/api/tags", timeout=3) as response:
             return [m["name"] for m in json.load(response).get("models", [])]
-    except OSError:
+    except (OSError, ValueError):
         return []

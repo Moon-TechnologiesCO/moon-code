@@ -1,202 +1,152 @@
-"""Aplicación principal de Moon Code."""
+"""The Moon Code application: owns settings, themes and which screen is showing."""
 
-import os
+from collections.abc import Iterable
 from pathlib import Path
 
-from rich.text import Text
-from textual import on, work
-from textual.app import App, ComposeResult
+from textual import work
+from textual.app import App, SystemCommand
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import DirectoryTree, Footer, Header, Input, Static, TabbedContent, TabPane, TextArea
+from textual.screen import Screen
 
-from moon.services import ollama as ai
-from moon.core.icons import icon_for, language_for
-from moon.core.themes import ALL_THEMES, EDITOR_THEMES
-
-
-class MoonTree(DirectoryTree):
-    """Explorador de archivos con iconos."""
-
-    def __init__(self, path: str, nerd: bool, **kwargs):
-        super().__init__(path, **kwargs)
-        self.nerd = nerd
-
-    def render_label(self, node, base_style, style) -> Text:
-        path = Path(node.data.path)
-        label = Text.assemble((icon_for(path, self.nerd) + " ", "bold"), (path.name, style))
-        return label
-
-
-class MoonEditor(TextArea):
-    """Editor con números de línea, resaltado y tema Moon."""
+from moon.core import updater
+from moon.core.config import Settings, settings_path
+from moon.core.projects import TEMPLATES_BY_ID
+from moon.core.themes import PALETTES, app_theme, palette
+from moon.extensions import builtin_extensions, user_extensions
+from moon.ui.dialogs import ConfirmDialog
+from moon.ui.screens.welcome import WelcomeScreen
+from moon.ui.screens.workspace import WorkspaceScreen
 
 
 class MoonCode(App):
-    TITLE = "●  ●  ●    Moon Code"
-    SUB_TITLE = "editor de terminal"
-    CSS_PATH = "moon.tcss"
-
+    TITLE = "Moon Code"
+    CSS_PATH = "styles.tcss"
     BINDINGS = [
-        Binding("ctrl+s", "save", "Guardar"),
-        Binding("ctrl+w", "close_tab", "Cerrar pestaña"),
-        Binding("ctrl+b", "toggle_sidebar", "Explorador"),
-        Binding("ctrl+t", "toggle_theme", "Tema"),
-        Binding("ctrl+a", "toggle_chat", "Chat IA"),
-        Binding("ctrl+q", "quit", "Salir"),
+        Binding("ctrl+q", "request_quit", "Quit", priority=True),
+        Binding("f1,ctrl+shift+p", "command_palette", "Commands", show=False, priority=True),
     ]
 
-    def __init__(self, root: str = ".", nerd: bool | None = None):
+    def __init__(self, target: Path | None = None, settings: Settings | None = None):
         super().__init__()
-        self.root_path = Path(root).resolve()
-        # Nerd Font se activa con MOON_NERD=1 o con el argumento --nerd.
-        self.nerd = nerd if nerd is not None else os.environ.get("MOON_NERD") == "1"
-        self.open_files: dict[str, Path] = {}
-        for theme in ALL_THEMES:
-            self.register_theme(theme)
-        self.theme = "moon-night"
-
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-        with Horizontal(id="workspace"):
-            yield MoonTree(str(self.root_path), self.nerd, id="explorer")
-            with TabbedContent(id="tabs"):
-                yield TabPane("Bienvenida", Static(self._welcome(), id="welcome"), id="welcome-tab")
-            with Vertical(id="chat"):
-                yield Static(f"🌙 IA local · {ai.DEFAULT_MODEL}", id="chat-title")
-                yield VerticalScroll(id="chat-log")
-                yield Input(placeholder="Pregunta a la IA y pulsa Enter…", id="chat-input")
-        yield Footer()
-
-    def _welcome(self) -> str:
-        return (
-            "🌙  [b]Moon Code[/b]\n\n"
-            "Abre un archivo desde el explorador (Enter).\n\n"
-            "ctrl+s guardar · ctrl+w cerrar · ctrl+b explorador · ctrl+t tema · ctrl+p comandos · ctrl+q salir"
-        )
+        self.settings = settings or Settings.load()
+        self.target = target
+        self.update_tag: str | None = None
+        for moon_palette in PALETTES:
+            self.register_theme(app_theme(moon_palette))
+        self.theme = palette(self.settings.theme).name
 
     def on_mount(self) -> None:
-        self.query_one(MoonTree).focus()
+        if self.target is None:
+            self.push_screen(WelcomeScreen(self.settings))
+        elif self.target.is_file():
+            self.open_workspace(self.target.parent, self.target)
+        else:
+            self.open_workspace(self.target)
+        if self.settings.check_updates:
+            self._check_updates(quiet=True)
 
-    @on(DirectoryTree.FileSelected)
-    def open_file(self, event: DirectoryTree.FileSelected) -> None:
-        path = Path(event.path)
-        key = str(path)
-        tabs = self.query_one("#tabs", TabbedContent)
-        if key in self.open_files:
-            tabs.active = self._pane_id(key)
+    # --- Screens ------------------------------------------------------------
+
+    def _extensions(self):
+        user, errors = user_extensions()
+        for error in errors:
+            self.notify(f"Extension error: {error}", severity="error")
+        return builtin_extensions() + user
+
+    def open_workspace(self, folder: Path, file: Path | None = None) -> None:
+        workspace = WorkspaceScreen(folder.resolve(), self.settings, self._extensions())
+        if isinstance(self.screen, (WelcomeScreen, WorkspaceScreen)):
+            self.switch_screen(workspace)
+        else:
+            self.push_screen(workspace)
+        if file is None:
+            file = self._main_file(folder)
+        if file is not None:
+            self.call_after_refresh(workspace.open_file, file)
+        if self.update_tag:
+            self.call_after_refresh(workspace.show_update, self.update_tag)
+
+    def _main_file(self, folder: Path) -> Path | None:
+        """For a freshly created project, the file to show first: its code, else its README."""
+        if len(list(folder.iterdir())) > 6:
+            return None
+        mains = [t.main for t in TEMPLATES_BY_ID.values() if t.main and t.main != "README.md"] + ["README.md"]
+        return next((folder / main for main in mains if (folder / main).is_file()), None)
+
+    def close_workspace(self) -> None:
+        self.switch_screen(WelcomeScreen(self.settings, self.update_tag))
+
+    def open_settings(self) -> None:
+        path = settings_path()
+        if not path.exists():
+            self.settings.save(path)
+        self.open_workspace(path.parent, path)
+
+    # --- Commands -----------------------------------------------------------
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        if isinstance(screen, WorkspaceScreen):
+            for title, help_text, callback in screen.commands():
+                yield SystemCommand(title, help_text, callback)
+        else:
+            yield SystemCommand("File: Open Folder", "Open a folder", lambda: screen.run_action("open_folder"))
+            yield SystemCommand("File: New Project", "Create a project", lambda: screen.run_action("new_project"))
+            yield SystemCommand("Preferences: Open Settings (JSON)", "Edit settings.json", self.open_settings)
+            yield SystemCommand("Help: Check for Updates", "Look for a newer Moon Code", self.action_check_updates)
+        yield SystemCommand("Quit", "Close Moon Code (ctrl+q)", self.action_request_quit)
+
+    # --- Themes & settings ----------------------------------------------------
+
+    def set_moon_theme(self, name: str) -> None:
+        self.theme = name
+        self.settings.theme = name
+        self.settings.save()
+        if isinstance(self.screen, WorkspaceScreen):
+            self.screen.apply_theme(name)
+
+    def reload_settings(self) -> None:
+        self.settings = Settings.load()
+        self.theme = palette(self.settings.theme).name
+        if isinstance(self.screen, WorkspaceScreen):
+            self.screen.apply_theme(self.theme)
+            self.screen.apply_settings(self.settings)
+        self.notify("Settings applied.")
+
+    # --- Updates ------------------------------------------------------------
+
+    def action_check_updates(self) -> None:
+        self._check_updates(quiet=False)
+
+    @work(thread=True, exclusive=True, group="updates")
+    def _check_updates(self, quiet: bool) -> None:
+        release = updater.newer_release()
+        self.call_from_thread(self._update_checked, release.tag if release else None, quiet)
+
+    def _update_checked(self, tag: str | None, quiet: bool) -> None:
+        self.update_tag = tag
+        if tag:
+            self.notify(f"Moon Code {tag} is available. Run `moon update` in a terminal.", title="Update available", timeout=8)
+            if hasattr(self.screen, "show_update"):
+                self.screen.show_update(tag)
+        elif not quiet:
+            self.notify("You're on the latest version.")
+
+    # --- Quit ---------------------------------------------------------------
+
+    def action_request_quit(self) -> None:
+        screen = self.screen
+        dirty = screen.dirty_editors() if isinstance(screen, WorkspaceScreen) else []
+        if not dirty:
+            self.exit()
             return
 
-        try:
-            content = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError) as error:
-            self.notify(f"No se puede abrir {path.name}: {error}", severity="error")
-            return
+        def answered(save: bool | None) -> None:
+            if save is None:
+                return
+            if save:
+                for editor in dirty:
+                    editor.save()
+            self.exit()
 
-        editor = MoonEditor(
-            content,
-            id=self._editor_id(key),
-            show_line_numbers=True,
-            tab_behavior="indent",
-        )
-        editor.register_theme(EDITOR_THEMES["moon-night"])
-        editor.theme = "moon-night"
-        language = language_for(path)
-        # El resaltado necesita las gramáticas de tree-sitter; sin ellas se muestra en texto plano.
-        if language in editor.available_languages:
-            editor.language = language
-        self.open_files[key] = path
-        tabs.add_pane(TabPane(f"{icon_for(path, self.nerd)} {path.name}", editor, id=self._pane_id(key)))
-        tabs.active = self._pane_id(key)
-        editor.focus()
-
-    def action_save(self) -> None:
-        editor = self._active_editor()
-        if editor is None:
-            return
-        path = self.open_files[self._key_from_editor(editor)]
-        path.write_text(editor.text, encoding="utf-8")
-        self.notify(f"Guardado {path.name}")
-
-    def action_close_tab(self) -> None:
-        tabs = self.query_one("#tabs", TabbedContent)
-        active = tabs.active
-        if not active or active == "welcome-tab":
-            return
-        for key, path in list(self.open_files.items()):
-            if self._pane_id(key) == active:
-                del self.open_files[key]
-                break
-        tabs.remove_pane(active)
-
-    def action_toggle_sidebar(self) -> None:
-        tree = self.query_one(MoonTree)
-        tree.display = not tree.display
-        if tree.display:
-            tree.focus()
-
-    def action_toggle_theme(self) -> None:
-        self.theme = "moon-light" if self.theme == "moon-night" else "moon-night"
-
-    def action_toggle_chat(self) -> None:
-        chat = self.query_one("#chat", Vertical)
-        chat.display = not chat.display
-        if chat.display:
-            self.query_one("#chat-input", Input).focus()
-
-    @on(Input.Submitted, "#chat-input")
-    def send_to_ai(self, event: Input.Submitted) -> None:
-        question = event.value.strip()
-        event.input.value = ""
-        if not question:
-            return
-        log = self.query_one("#chat-log", VerticalScroll)
-        log.mount(Static(f"[b]Tú:[/b] {question}", classes="msg"))
-        reply = Static("…", classes="msg reply")
-        log.mount(reply)
-        self._ask_ai(question, reply)
-
-    @work(thread=True, exclusive=True)
-    def _ask_ai(self, question: str, reply: Static) -> None:
-        messages = [{"role": "user", "content": question}]
-        text = ""
-        try:
-            for piece in ai.stream_chat(ai.DEFAULT_MODEL, messages):
-                text += piece
-                self.call_from_thread(reply.update, text)
-        except OSError as error:
-            text = f"No pude conectar con Ollama en {ai.OLLAMA_URL}: {error}"
-            self.call_from_thread(reply.update, text)
-        self.call_from_thread(self.query_one("#chat-log", VerticalScroll).scroll_end)
-
-    def _active_editor(self) -> MoonEditor | None:
-        tabs = self.query_one("#tabs", TabbedContent)
-        for key in self.open_files:
-            if self._pane_id(key) == tabs.active:
-                return self.query_one(f"#{self._editor_id(key)}", MoonEditor)
-        return None
-
-    def _key_from_editor(self, editor: MoonEditor) -> str:
-        for key in self.open_files:
-            if self._editor_id(key) == editor.id:
-                return key
-        raise KeyError(editor.id)
-
-    @staticmethod
-    def _pane_id(key: str) -> str:
-        return "pane-" + _slug(key)
-
-    @staticmethod
-    def _editor_id(key: str) -> str:
-        return "editor-" + _slug(key)
-
-
-def _slug(text: str) -> str:
-    """Convierte una ruta en un id válido para Textual."""
-    return "".join(ch if ch.isalnum() else "_" for ch in text)
-
-
-def run(argv: list[str]) -> None:
-    nerd = "--nerd" in argv
-    args = [a for a in argv if a != "--nerd"]
-    MoonCode(args[0] if args else ".", nerd=nerd).run()
+        names = ", ".join(editor.path.name for editor in dirty[:3]) + ("…" if len(dirty) > 3 else "")
+        self.push_screen(ConfirmDialog("Unsaved changes", f"Save changes before quitting?\n{names}", "Save All", "Don't Save"), answered)

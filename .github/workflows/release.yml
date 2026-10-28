@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check the tag matches the package version
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)"
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME != version $version"; exit 1; }
+      - run: pip install -e ".[dev]" && pytest -q
+      - run: PYTHON=python packaging/linux/build_deb.sh
+      - name: Attach the .deb to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "Moon Code ${GITHUB_REF_NAME#v}" --generate-notes
+          cp dist/moon-code_*_amd64.deb dist/moon-code_latest_amd64.deb
+          gh release upload "$GITHUB_REF_NAME" dist/*.deb --clobber

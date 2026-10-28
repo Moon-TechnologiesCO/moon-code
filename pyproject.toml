@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "moon-code"
-version = "0.1.0"
+version = "0.2.0"
 description = "Moon Code: editor de código para la terminal."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = ["textual>=8.2", "pygments>=2.17"]
+dependencies = ["textual[syntax]>=8.2", "pygments>=2.17", "pyte>=0.8"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [project.scripts]
 moon = "moon.cli:main"
@@ -21,4 +21,8 @@ moon = "moon.cli:main"
 include = ["moon*"]
 
 [tool.setuptools.package-data]
-"moon.ui" = ["moon.tcss"]
+"moon.ui" = ["styles.tcss"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

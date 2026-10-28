@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Moon Code installer for Ubuntu/Debian, other Linux distributions and macOS.
+#
+#   curl -fsSL https://raw.githubusercontent.com/Moon-TechnologiesCO/moon-code/main/install.sh | bash
+#
+# Ubuntu/Debian: installs the latest .deb with apt (asks for your password).
+# macOS and other Linux: installs into ~/.moon-code with Python's venv, adds `moon` to your PATH
+# and (on macOS) creates "Moon Code.app" in ~/Applications.
+# Uninstall: bash install.sh --uninstall
+set -euo pipefail
+
+REPO="Moon-TechnologiesCO/moon-code"
+HOME_DIR="${MOON_HOME:-$HOME/.moon-code}"
+BIN_DIR="$HOME/.local/bin"
+RAW="https://raw.githubusercontent.com/$REPO"
+
+bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+info() { printf '\033[1;35m❯\033[0m %s\n' "$*"; }
+fail() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+
+latest_tag() {
+  curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1
+}
+
+find_python() {
+  for candidate in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+      echo "$candidate"
+      return
+    fi
+  done
+}
+
+install_deb() {
+  local tag="$1" file
+  file="moon-code_${tag#v}_amd64.deb"
+  info "Downloading $file"
+  curl -fL --progress-bar -o "/tmp/$file" "https://github.com/$REPO/releases/download/$tag/$file"
+  info "Installing with apt (you may be asked for your password)"
+  sudo apt-get install -y "/tmp/$file"
+  rm -f "/tmp/$file"
+}
+
+install_venv() {
+  local tag="$1" python
+  python="$(find_python)"
+  if [ -z "$python" ]; then
+    if [ "$(uname)" = "Darwin" ]; then
+      fail "Python 3.10+ is required. Install it with: brew install python  (or: xcode-select --install)"
+    fi
+    fail "Python 3.10+ is required. Install python3 and python3-venv with your package manager."
+  fi
+  info "Using $($python --version)"
+  rm -rf "$HOME_DIR/venv"
+  "$python" -m venv "$HOME_DIR/venv"
+  "$HOME_DIR/venv/bin/python" -m pip install --quiet --upgrade pip
+  info "Installing Moon Code $tag"
+  "$HOME_DIR/venv/bin/python" -m pip install --quiet "moon-code @ git+https://github.com/$REPO@$tag"
+  mkdir -p "$BIN_DIR"
+  ln -sf "$HOME_DIR/venv/bin/moon" "$BIN_DIR/moon"
+  case ":$PATH:" in
+    *":$BIN_DIR:"*) ;;
+    *) info "Add this to your shell profile so \`moon\` is found:  export PATH=\"$BIN_DIR:\$PATH\"" ;;
+  esac
+}
+
+install_macos_app() {
+  local tag="$1" app="$HOME/Applications/Moon Code.app"
+  info "Creating $app"
+  rm -rf "$app"
+  mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+  curl -fsSL -o "$app/Contents/Resources/moon-code.icns" "$RAW/$tag/packaging/icons/moon-code.icns" || true
+  cat > "$app/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Moon Code</string>
+  <key>CFBundleDisplayName</key><string>Moon Code</string>
+  <key>CFBundleIdentifier</key><string>co.moontechnologies.mooncode</string>
+  <key>CFBundleVersion</key><string>${tag#v}</string>
+  <key>CFBundleShortVersionString</key><string>${tag#v}</string>
+  <key>CFBundleExecutable</key><string>moon-code</string>
+  <key>CFBundleIconFile</key><string>moon-code</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSMinimumSystemVersion</key><string>11.0</string>
+</dict></plist>
+PLIST
+  cat > "$app/Contents/MacOS/moon-code" <<LAUNCH
+#!/bin/bash
+# Open Moon Code in a new Terminal window.
+osascript -e 'tell application "Terminal"' -e 'activate' -e 'do script "exec $BIN_DIR/moon"' -e 'end tell'
+LAUNCH
+  chmod +x "$app/Contents/MacOS/moon-code"
+  touch "$app"
+}
+
+install_linux_desktop_entry() {
+  local apps="$HOME/.local/share/applications" icons="$HOME/.local/share/icons/hicolor/scalable/apps" tag="$1"
+  mkdir -p "$apps" "$icons"
+  curl -fsSL -o "$icons/moon-code.svg" "$RAW/$tag/packaging/icons/moon-code.svg" || true
+  curl -fsSL "$RAW/$tag/packaging/linux/moon-code.desktop" \
+    | sed "s|^Exec=moon|Exec=$BIN_DIR/moon|" > "$apps/moon-code.desktop" || true
+}
+
+uninstall() {
+  if command -v dpkg >/dev/null 2>&1 && dpkg -s moon-code >/dev/null 2>&1; then
+    sudo apt-get remove -y moon-code
+  fi
+  rm -rf "$HOME_DIR" "$BIN_DIR/moon" "$HOME/Applications/Moon Code.app" \
+         "$HOME/.local/share/applications/moon-code.desktop" "$HOME/.local/share/icons/hicolor/scalable/apps/moon-code.svg"
+  bold "Moon Code was removed. Your settings are kept in ~/.config/moon-code (Linux) or ~/Library/Application Support/moon-code (macOS)."
+}
+
+main() {
+  if [ "${1:-}" = "--uninstall" ]; then
+    uninstall
+    return
+  fi
+  command -v curl >/dev/null 2>&1 || fail "curl is required."
+  bold "🌙 Installing Moon Code"
+  local tag
+  tag="${MOON_VERSION:-$(latest_tag)}"
+  [ -n "$tag" ] || fail "Couldn't find the latest release on GitHub."
+
+  case "$(uname -s)" in
+    Darwin)
+      install_venv "$tag"
+      install_macos_app "$tag"
+      ;;
+    Linux)
+      if command -v apt-get >/dev/null 2>&1 && [ "$(uname -m)" = "x86_64" ]; then
+        install_deb "$tag"
+      else
+        install_venv "$tag"
+        install_linux_desktop_entry "$tag"
+      fi
+      ;;
+    *) fail "Unsupported system: $(uname -s). Moon Code runs on Linux and macOS." ;;
+  esac
+
+  bold "✓ Moon Code $tag is installed."
+  echo "  Open it from your apps menu, or run:  moon ."
+  echo "  Update later with:                    moon update"
+}
+
+main "$@"
